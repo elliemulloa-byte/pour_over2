@@ -7,7 +7,6 @@ export function SearchHeader({
   loading,
   geoLoading,
   geoError,
-  onRequestLocation,
   hasCoords,
 }) {
   const inputRef = useRef(null);
@@ -57,25 +56,15 @@ export function SearchHeader({
       <p id="search-hint" className="search-hint">
         Only the drink is reviewed — no venue noise.
       </p>
-      <div className="location-row">
-        {!hasCoords && !geoLoading && (
-          <button
-            type="button"
-            className="location-btn"
-            onClick={onRequestLocation}
-            aria-label="Use my location for nearby results"
-          >
-            Use my location for nearby
-          </button>
-        )}
-        {geoLoading && <span className="location-status">Getting location…</span>}
-        {geoError && (
-          <span className="location-error" role="alert">
-            Location unavailable. Results not sorted by distance.
-          </span>
-        )}
-        {hasCoords && <span className="location-ok">Nearby results on</span>}
-      </div>
+      {geoLoading && <p className="location-status">Getting location…</p>}
+      {geoError && (
+        <p className="location-error" role="alert">
+          Location unavailable — results not sorted by distance.
+        </p>
+      )}
+      {hasCoords && (
+        <p className="location-status location-ok">Using your location for nearby results.</p>
+      )}
     </header>
   );
 }

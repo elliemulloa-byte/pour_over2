@@ -18,3 +18,9 @@ export async function suggestDrinks(query) {
   if (!res.ok) return { suggestions: [] };
   return res.json();
 }
+
+export async function getPopularDrinks() {
+  const res = await fetch(`${API}/drinks/popular`);
+  if (!res.ok) return { suggestions: [] };
+  return res.json();
+}

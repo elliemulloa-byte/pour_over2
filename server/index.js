@@ -136,6 +136,20 @@ app.get('/api/drinks/suggest', (req, res) => {
   res.json({ suggestions: rows.map((r) => r.display_name) });
 });
 
+app.get('/api/drinks/popular', (req, res) => {
+  const rows = db
+    .prepare(
+      `SELECT d.display_name
+       FROM drinks d
+       LEFT JOIN drink_reviews r ON r.drink_id = d.id
+       GROUP BY d.display_name
+       ORDER BY COUNT(r.id) DESC, d.display_name
+       LIMIT 24`
+    )
+    .all();
+  res.json({ suggestions: rows.map((r) => r.display_name) });
+});
+
 app.get('/api/health', (req, res) => {
   res.json({ ok: true });
 });

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { searchDrinks, suggestDrinks } from './api';
+import { searchDrinks, suggestDrinks, getPopularDrinks } from './api';
 import './App.css';
 import { SearchHeader } from './SearchHeader';
 import { DrinkResults } from './DrinkResults';
@@ -9,13 +9,18 @@ export default function App() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
+  const [popularSuggestions, setPopularSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
-  const { coords, loading: geoLoading, error: geoError, request } = useGeo();
+  const { coords, loading: geoLoading, error: geoError, request: requestLocation } = useGeo();
   const debounceRef = useRef(null);
 
+  useEffect(() => {
+    getPopularDrinks().then((data) => setPopularSuggestions(data.suggestions || []));
+  }, []);
+
   const runSearch = useCallback(
-    async (q) => {
+    async (q, coordsToUse) => {
       const trimmed = (q ?? query).trim();
       if (trimmed.length < 2) {
         setResults([]);
@@ -25,7 +30,7 @@ export default function App() {
       setLoading(true);
       setSearched(true);
       try {
-        const { lat, lng } = coords || {};
+        const { lat, lng } = coordsToUse ?? coords ?? {};
         const data = await searchDrinks(trimmed, lat, lng);
         setResults(data.results || []);
         setSuggestions(data.suggestions || []);
@@ -43,8 +48,6 @@ export default function App() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (query.trim().length < 2) {
       setSuggestions([]);
-      setResults([]);
-      setSearched(false);
       return;
     }
     debounceRef.current = setTimeout(async () => {
@@ -54,17 +57,32 @@ export default function App() {
     return () => clearTimeout(debounceRef.current);
   }, [query]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e?.preventDefault();
-    runSearch(query);
+    const trimmed = query.trim();
+    if (trimmed.length < 2) return;
+    if (!coords && !geoError && navigator.geolocation) {
+      const c = await requestLocation();
+      await runSearch(trimmed, c);
+    } else {
+      await runSearch(trimmed);
+    }
   };
 
-  const handleSuggestionClick = (s) => {
+  const handleSuggestionClick = async (s) => {
     setQuery(s);
     setResults([]);
     setSearched(false);
-    setTimeout(() => runSearch(s), 0);
+    if (!coords && !geoError && navigator.geolocation) {
+      const c = await requestLocation();
+      setTimeout(() => runSearch(s, c), 0);
+    } else {
+      setTimeout(() => runSearch(s), 0);
+    }
   };
+
+  const displaySuggestions = query.trim().length >= 2 ? suggestions : popularSuggestions;
+  const suggestionsLabel = query.trim().length >= 2 ? 'Try one of these' : 'Popular drinks';
 
   return (
     <div className="app">
@@ -75,14 +93,13 @@ export default function App() {
         loading={loading}
         geoLoading={geoLoading}
         geoError={geoError}
-        onRequestLocation={request}
         hasCoords={!!coords}
       />
-      {!searched && query.trim().length >= 2 && suggestions.length > 0 && (
+      {!searched && displaySuggestions.length > 0 && (
         <section className="suggestions" aria-label="Drink suggestions">
-          <p className="suggestions-label">Try one of these</p>
+          <p className="suggestions-label">{suggestionsLabel}</p>
           <ul className="suggestions-list">
-            {suggestions.map((s) => (
+            {displaySuggestions.map((s) => (
               <li key={s}>
                 <button
                   type="button"
@@ -106,7 +123,7 @@ export default function App() {
       )}
       {searched && !loading && results.length === 0 && (
         <div className="empty">
-          <p>No drinks found for “{query}”.</p>
+          <p>No drinks found for "{query}".</p>
           <p className="empty-hint">Try another name (e.g. cappuccino, pour over, flat white).</p>
         </div>
       )}
