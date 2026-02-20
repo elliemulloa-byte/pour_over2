@@ -1,8 +1,16 @@
-import { db } from './db.js';
+import { initDb, db } from './db.js';
 
-db.exec('DELETE FROM drink_reviews; DELETE FROM drinks; DELETE FROM shops;');
+export async function seedIfEmpty() {
+  await initDb();
+  const rows = db.prepare('SELECT 1 FROM shops LIMIT 1').all();
+  if (rows.length > 0) return;
+  runSeed();
+}
 
-const shops = [
+function runSeed() {
+  db.exec('DELETE FROM drink_reviews; DELETE FROM drinks; DELETE FROM shops;');
+
+  const shops = [
   { name: 'Merit Coffee', address: '1200 S Lamar Blvd, Austin, TX', lat: 30.2522, lng: -97.7645 },
   { name: 'Flat Track Coffee', address: '1619 E Cesar Chavez St, Austin, TX', lat: 30.2551, lng: -97.7266 },
   { name: 'Fleet Coffee', address: '2424 E Cesar Chavez St, Austin, TX', lat: 30.2542, lng: -97.7155 },
@@ -11,12 +19,12 @@ const shops = [
   { name: 'Medici Roasting', address: '1101 W 34th St, Austin, TX', lat: 30.3021, lng: -97.7489 },
   { name: 'Houndstooth Coffee', address: '401 Congress Ave, Austin, TX', lat: 30.2676, lng: -97.7434 },
   { name: 'Cuvée Coffee Bar', address: '2000 E 6th St, Austin, TX', lat: 30.2612, lng: -97.7178 },
-];
+  ];
 
-const insertShop = db.prepare('INSERT INTO shops (name, address, lat, lng) VALUES (?, ?, ?, ?)');
-shops.forEach((s) => insertShop.run(s.name, s.address, s.lat, s.lng));
+  const insertShop = db.prepare('INSERT INTO shops (name, address, lat, lng) VALUES (?, ?, ?, ?)');
+  shops.forEach((s) => insertShop.run(s.name, s.address, s.lat, s.lng));
 
-const drinkTypes = [
+  const drinkTypes = [
   { type: 'cappuccino', display: 'Cappuccino' },
   { type: 'pour over', display: 'Pour Over' },
   { type: 'flat white', display: 'Flat White' },
@@ -37,13 +45,13 @@ const drinkTypes = [
   { type: 'v60', display: 'V60 Pour Over' },
   { type: 'chemex', display: 'Chemex' },
   { type: 'aeroPress', display: 'AeroPress' },
-];
+  ];
 
-const insertDrink = db.prepare('INSERT INTO drinks (shop_id, drink_type, display_name) VALUES (?, ?, ?)');
-const insertReview = db.prepare('INSERT INTO drink_reviews (drink_id, rating, comment) VALUES (?, ?, ?)');
+  const insertDrink = db.prepare('INSERT INTO drinks (shop_id, drink_type, display_name) VALUES (?, ?, ?)');
+  const insertReview = db.prepare('INSERT INTO drink_reviews (drink_id, rating, comment) VALUES (?, ?, ?)');
 
-const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-const comments = [
+  const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+  const comments = [
   'Perfect balance.',
   'Best in town.',
   'Smooth and rich.',
@@ -54,9 +62,9 @@ const comments = [
   null,
   null,
   null,
-];
+  ];
 
-for (let shopId = 1; shopId <= shops.length; shopId++) {
+  for (let shopId = 1; shopId <= shops.length; shopId++) {
   const count = rand(8, drinkTypes.length);
   const shuffled = [...drinkTypes].sort(() => Math.random() - 0.5);
   for (let i = 0; i < count; i++) {
@@ -68,6 +76,14 @@ for (let shopId = 1; shopId <= shops.length; shopId++) {
       insertReview.run(drinkId, rand(3, 5), comments[rand(0, comments.length - 1)]);
     }
   }
+  }
+
+  console.log('Seeded shops, drinks, and reviews.');
 }
 
-console.log('Seeded shops, drinks, and reviews.');
+const run = async () => {
+  await initDb();
+  runSeed();
+};
+
+run();

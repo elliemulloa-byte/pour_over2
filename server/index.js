@@ -3,7 +3,8 @@ import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { db } from './db.js';
+import { initDb, db } from './db.js';
+import { seedIfEmpty } from './seed.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -162,6 +163,9 @@ if (fs.existsSync(distPath)) {
   });
 }
 
-app.listen(PORT, () => {
-  console.log(`Server at http://localhost:${PORT}`);
+initDb().then(async () => {
+  await seedIfEmpty();
+  app.listen(PORT, () => {
+    console.log(`Server at http://localhost:${PORT}`);
+  });
 });
