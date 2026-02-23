@@ -1,7 +1,13 @@
 import { Link } from 'react-router-dom';
 
 export function SearchResults({ shops, drinks, loading, query, hasLocation, user }) {
-  if (loading) return null;
+  if (loading) {
+    return (
+      <section className="search-results" aria-label={`Results for ${query}`}>
+        <p className="loading-text">Searching…</p>
+      </section>
+    );
+  }
 
   return (
     <section className="search-results" aria-label={`Results for ${query}`}>
@@ -11,11 +17,15 @@ export function SearchResults({ shops, drinks, loading, query, hasLocation, user
           <ul className="results-list results-list--yelp">
             {shops.map((s) => {
               const isGoogle = s.source === 'google';
-              const linkTo = isGoogle ? `/place/${encodeURIComponent(s.placeId)}` : `/shop/${s.shopId}`;
-              const key = isGoogle ? `g-${s.placeId}` : s.shopId;
+              const isOsm = s.source === 'osm';
+              const linkTo = isGoogle ? `/place/${encodeURIComponent(s.placeId)}` : isOsm ? null : `/shop/${s.shopId}`;
+              const key = isGoogle ? `g-${s.placeId}` : isOsm ? `osm-${s.placeId}` : s.shopId;
+              const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address || s.shopName)}`;
+              const CardWrapper = linkTo ? Link : 'a';
+              const cardProps = linkTo ? { to: linkTo } : { href: mapsUrl, target: '_blank', rel: 'noopener noreferrer' };
               return (
               <li key={key}>
-                <Link to={linkTo} className="result-card result-card--shop">
+                <CardWrapper {...cardProps} className="result-card result-card--shop">
                   <div className="result-card-main">
                     <div className="result-shop-name">{s.shopName}</div>
                     <div className="result-address">{s.address || ''}</div>
@@ -41,7 +51,7 @@ export function SearchResults({ shops, drinks, loading, query, hasLocation, user
                   >
                     Map
                   </a>
-                </Link>
+                </CardWrapper>
               </li>
             );
             })}

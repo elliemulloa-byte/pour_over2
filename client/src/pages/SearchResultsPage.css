@@ -1,0 +1,61 @@
+.search-results-page {
+  min-height: 60vh;
+  padding: 1.5rem 1rem 3rem;
+}
+
+.search-results-page-header {
+  margin-bottom: 1.5rem;
+}
+
+.search-results-back {
+  display: inline-block;
+  color: var(--text-muted, #666);
+  text-decoration: none;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.search-results-back:hover {
+  text-decoration: underline;
+}
+
+.search-results-page-title {
+  font-size: 1.5rem;
+  margin: 0 0 0.25rem;
+}
+
+.search-results-location {
+  font-size: 0.95rem;
+  color: var(--text-muted, #666);
+  margin: 0;
+}
+
+.search-results-error {
+  padding: 1rem;
+  background: #fee;
+  border-radius: var(--radius, 8px);
+  margin-bottom: 1rem;
+}
+
+.search-results-empty {
+  padding: 2rem;
+  text-align: center;
+}
+
+.search-results-empty-hint {
+  color: var(--text-muted, #666);
+  font-size: 0.95rem;
+  margin-top: 0.5rem;
+}
+
+.search-results-back-link {
+  display: inline-block;
+  margin-top: 1rem;
+  color: var(--accent, #8b5a2b);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.search-results-back-link:hover {
+  text-decoration: underline;
+}

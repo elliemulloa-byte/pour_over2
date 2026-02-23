@@ -1,11 +1,11 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { searchUnified, suggestDrinks, getPopularDrinks, geocodeAddress, correctDrinkTypo } from '../api';
+import { useNavigate } from 'react-router-dom';
+import { suggestDrinks, getPopularDrinks, correctDrinkTypo } from '../api';
 import '../App.css';
 import { SearchHeader } from '../SearchHeader';
 import { BeanVerdictLogo } from '../BeanVerdictLogo';
 import { useGeo } from '../useGeo';
 import { useAuth } from '../AuthContext';
-import { SearchResults } from '../SearchResults';
 import './Landing.css';
 
 function parseSearchInput(input) {
@@ -19,27 +19,27 @@ function parseSearchInput(input) {
   return { query: parts.join(' '), location };
 }
 
+// Unique images per drink – picsum uses seed for deterministic, working URLs
 const RECOMMENDED = [
-  { label: 'Peppermint Mocha', img: 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=200&h=200&fit=crop', query: 'peppermint mocha' },
-  { label: 'Latte', img: 'https://images.unsplash.com/photo-1561882468-9110e03e0f78?w=200&h=200&fit=crop', query: 'latte' },
-  { label: 'Cold Brew', img: 'https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?w=200&h=200&fit=crop', query: 'cold brew' },
-  { label: 'Pour Over', img: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=200&h=200&fit=crop', query: 'pour over' },
-  { label: 'Cappuccino', img: 'https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=200&h=200&fit=crop', query: 'cappuccino' },
-  { label: 'Mocha', img: 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=200&h=200&fit=crop', query: 'mocha' },
-  { label: 'Pure Espresso', img: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=200&h=200&fit=crop', query: 'pure espresso' },
-  { label: 'Americano', img: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=200&h=200&fit=crop', query: 'americano' },
+  { label: 'Peppermint Mocha', img: 'https://picsum.photos/seed/peppermint-mocha/600/600', query: 'peppermint mocha' },
+  { label: 'Latte', img: 'https://picsum.photos/seed/latte-coffee/600/600', query: 'latte' },
+  { label: 'Cold Brew', img: 'https://picsum.photos/seed/cold-brew/600/600', query: 'cold brew' },
+  { label: 'Pour Over', img: 'https://picsum.photos/seed/pour-over/600/600', query: 'pour over' },
+  { label: 'Cappuccino', img: 'https://picsum.photos/seed/cappuccino/600/600', query: 'cappuccino' },
+  { label: 'Mocha', img: 'https://picsum.photos/seed/mocha-coffee/600/600', query: 'mocha' },
+  { label: 'Espresso (shot)', img: 'https://picsum.photos/seed/espresso-shot/600/600', query: 'espresso' },
+  { label: 'Americano', img: 'https://picsum.photos/seed/americano/600/600', query: 'americano' },
 ];
 
 export function Landing() {
+  const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [locationInput, setLocationInput] = useState('');
-  const [results, setResults] = useState({ shops: [], drinks: [] });
   const [suggestions, setSuggestions] = useState([]);
   const [popularSuggestions, setPopularSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
   const [locationError, setLocationError] = useState('');
-  const { user } = useAuth();
+  useAuth();
   const { coords, loading: geoLoading, error: geoError, request: requestLocation } = useGeo();
   const debounceRef = useRef(null);
 
@@ -50,30 +50,12 @@ export function Landing() {
     getPopularDrinks().then((data) => setPopularSuggestions(data.suggestions || []));
   }, []);
 
-  const runSearch = useCallback(
-    async (q, coordsToUse) => {
-      const trimmed = (q ?? query).trim();
-      if (trimmed.length < 2) {
-        setResults({ shops: [], drinks: [] });
-        setSearched(false);
-        return;
-      }
-      setLoading(true);
-      setSearched(true);
-      try {
-        const { lat, lng } = coordsToUse ?? coords ?? {};
-        const data = await searchUnified(trimmed, lat, lng);
-        setResults({ shops: data.shops || [], drinks: data.drinks || [] });
-        setSuggestions(data.suggestions || []);
-      } catch (e) {
-        setResults({ shops: [], drinks: [] });
-        setSuggestions([]);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [query, coords]
-  );
+  const goToResults = useCallback((searchQuery, location) => {
+    const params = new URLSearchParams();
+    params.set('q', searchQuery.trim());
+    if (location && location.trim()) params.set('location', location.trim());
+    navigate(`/search?${params.toString()}`);
+  }, [navigate]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -88,21 +70,11 @@ export function Landing() {
     return () => clearTimeout(debounceRef.current);
   }, [query]);
 
-  const getCoords = useCallback(async () => {
-    if (coords) return coords;
-    if (locationInput.trim()) {
-      const c = await geocodeAddress(locationInput.trim());
-      if (c) return c;
-    }
-    if (navigator.geolocation) return await requestLocation();
-    return null;
-  }, [coords, locationInput, requestLocation]);
-
   const handleShareLocation = useCallback(async () => {
     await requestLocation();
   }, [requestLocation]);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e?.preventDefault();
     let trimmed = query.trim();
     const parsed = parseSearchInput(trimmed);
@@ -113,42 +85,20 @@ export function Landing() {
     const corrected = correctDrinkTypo(searchQuery);
     if (corrected !== searchQuery) setQuery(corrected);
     const finalQuery = corrected;
-    const effectiveLocation = parsed.location || locationInput.trim() || coords;
     if (finalQuery.length < 2) return;
-    if (!effectiveLocation && !coords) {
-      setLocationError('Enter a city or address, or tap the pin to share your location.');
-      return;
-    }
     setLocationError('');
-    let coordsToUse = coords;
-    if (parsed.location || locationInput.trim()) {
-      coordsToUse = await geocodeAddress(parsed.location || locationInput.trim());
-      if (!coordsToUse && coords) coordsToUse = coords;
-      if (!coordsToUse && navigator.geolocation) coordsToUse = await requestLocation();
-    } else if (navigator.geolocation) {
-      coordsToUse = await requestLocation();
-    }
-    await runSearch(finalQuery, coordsToUse);
+    const loc = parsed.location || locationInput.trim();
+    goToResults(finalQuery, loc);
   };
 
-  const handleSuggestionClick = async (s) => {
+  const handleSuggestionClick = (s) => {
     setQuery(s);
-    setResults({ shops: [], drinks: [] });
-    setSearched(false);
-    if (!hasLocation) return;
-    const coordsToUse = await getCoords();
-    setTimeout(() => runSearch(s, coordsToUse), 0);
+    goToResults(s, locationInput);
   };
 
-  const handleRecommendedClick = async (item) => {
+  const handleRecommendedClick = (item) => {
     setQuery(item.query);
-    setResults({ shops: [], drinks: [] });
-    setSearched(false);
-    if (!hasLocation) {
-      return;
-    }
-    const coordsToUse = await getCoords();
-    setTimeout(() => runSearch(item.query, coordsToUse), 0);
+    goToResults(item.query, locationInput);
   };
 
   const displaySuggestions = query.trim().length >= 2 ? suggestions : popularSuggestions;
@@ -201,7 +151,6 @@ export function Landing() {
               type="button"
               className="recommended-card"
               onClick={() => handleRecommendedClick(item)}
-              disabled={!hasLocation}
             >
               <img src={item.img} alt="" className="recommended-img" />
               <span className="recommended-label">{item.label}</span>
@@ -210,7 +159,7 @@ export function Landing() {
         </div>
       </section>
 
-      {!searched && displaySuggestions.length > 0 && (
+      {displaySuggestions.length > 0 && (
         <section className="suggestions landing-suggestions" aria-label="Drink suggestions">
           <p className="suggestions-label">{suggestionsLabel}</p>
           <ul className="suggestions-list">
@@ -220,7 +169,6 @@ export function Landing() {
                   type="button"
                   className="suggestion-btn"
                   onClick={() => handleSuggestionClick(s)}
-                  disabled={!hasLocation}
                 >
                   {s}
                 </button>
@@ -228,26 +176,6 @@ export function Landing() {
             ))}
           </ul>
         </section>
-      )}
-
-      {searched && (
-        <SearchResults
-          shops={results.shops}
-          drinks={results.drinks}
-          loading={loading}
-          query={query}
-          hasLocation={hasLocation || !!coords}
-          user={user}
-        />
-      )}
-
-      {searched && !loading && results.shops.length === 0 && results.drinks.length === 0 && (
-        <div className="empty">
-          <p>No results for "{query}".</p>
-          <p className="empty-hint">
-            Try a drink (e.g. latte, peppermint mocha) or a coffee shop (e.g. Houndstooth Austin).
-          </p>
-        </div>
       )}
     </main>
   );

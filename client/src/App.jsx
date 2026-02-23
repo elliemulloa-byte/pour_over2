@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import { Layout } from './Layout';
 import { Landing } from './pages/Landing';
+import { SearchResultsPage } from './pages/SearchResultsPage';
 import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
 import { Profile } from './pages/Profile';
@@ -12,7 +13,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Layout />}>
         <Route index element={<Landing />} />
-        <Route path="search" element={<Landing />} />
+        <Route path="search" element={<SearchResultsPage />} />
         <Route path="shop/:shopId" element={<ShopDetail />} />
         <Route path="place/:placeId" element={<PlaceDetail />} />
         <Route path="login" element={<Login />} />

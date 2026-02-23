@@ -4,7 +4,7 @@ const API = '/api';
 const DRINK_TYPO_MAP = {
   'cappucino': 'cappuccino', 'capuccino': 'cappuccino',
   'espresso': 'espresso', 'expresso': 'espresso',
-  'pure espresso': 'pure espresso', 'pure epsresso': 'pure espresso', 'pure expresso': 'pure espresso',
+  'pure espresso': 'espresso', 'pure epsresso': 'espresso', 'pure expresso': 'espresso',
   'latte': 'latte', 'latté': 'latte', 'lattes': 'latte',
   'americano': 'americano', 'americanos': 'americano',
   'mocha': 'mocha', 'mochas': 'mocha',
@@ -42,7 +42,7 @@ export async function searchDrinks(query, lat, lng) {
     params.set('lat', lat);
     params.set('lng', lng);
   }
-  const res = await fetch(`${API}/drinks/search?${params}`, { credentials: 'include' });
+  const res = await fetch(`${API}/drinks/search?${params}`, { credentials: 'include', mode: 'cors' });
   if (!res.ok) throw new Error('Search failed');
   return res.json();
 }
@@ -54,7 +54,7 @@ export async function searchUnified(query, lat, lng) {
     params.set('lat', lat);
     params.set('lng', lng);
   }
-  const res = await fetch(`${API}/search?${params}`, { credentials: 'include' });
+  const res = await fetch(`${API}/search?${params}`, { credentials: 'include', mode: 'cors' });
   if (!res.ok) throw new Error('Search failed');
   return res.json();
 }

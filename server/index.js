@@ -8,6 +8,7 @@ import { initDb, db } from './db.js';
 import { seedIfEmpty } from './seed.js';
 import { authRoutes, requireAuth } from './auth.js';
 import { fetchPlacesFromGoogle, fetchPlaceDetails } from './places.js';
+import { fetchCoffeeShopsFromOSM } from './overpass.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -296,6 +297,26 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true });
 });
 
+// Fallback location from IP when GPS is restricted (e.g. HTTP, or browser blocks geolocation)
+app.get('/api/location/ip', async (req, res) => {
+  try {
+    let ip = (req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.socket?.remoteAddress || '')
+      .toString().split(',')[0].trim();
+    // IPv6 localhost
+    if (ip === '::1' || ip === '::ffff:127.0.0.1') ip = '127.0.0.1';
+    // Private IPs: ip-api won't geolocate; use empty to get server's public IP
+    const isPrivate = /^(127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|::1)/.test(ip);
+    const query = isPrivate ? '' : `/${ip}`;
+    const url = `http://ip-api.com/json${query}?fields=lat,lon,status`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if (data?.status === 'success' && data?.lat != null && data?.lon != null) {
+      return res.json({ lat: data.lat, lng: data.lon });
+    }
+  } catch (_) { /* ignore */ }
+  res.status(503).json({ error: 'Could not determine location' });
+});
+
 // Google Place Details (photos, interior, menu) - requires GOOGLE_PLACES_API_KEY
 app.get('/api/places/:placeId', async (req, res) => {
   const placeId = req.params.placeId;
@@ -348,26 +369,52 @@ app.get('/api/search', async (req, res) => {
     });
   }
 
-  // Fetch real coffee shops from Google Places when API key and location provided
-  if (lat != null && lng != null) {
-    const googlePlaces = await fetchPlacesFromGoogle(q, lat, lng);
-    for (const p of googlePlaces) {
-      if (p.lat != null && p.lng != null) {
-        p.distanceKm = Math.round(haversineKm(lat, lng, p.lat, p.lng) * 10) / 10;
-      }
-    }
-    shops = [...shops, ...googlePlaces];
-    shops.sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
-  } else if (shops.length > 0) {
-    shops.sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
-  }
-
-  // Search drinks
+  // Search drinks (before IP fallback so we can check if we have any results)
   const drinkRows = db.prepare(`
     SELECT d.id AS drink_id, d.drink_type, d.display_name, s.id AS shop_id, s.name AS shop_name, s.address AS shop_address, s.lat AS shop_lat, s.lng AS shop_lng
     FROM drinks d JOIN shops s ON s.id = d.shop_id
     WHERE LOWER(d.drink_type) LIKE ? OR LOWER(d.display_name) LIKE ?
   `).all(`%${q}%`, `%${q}%`);
+
+  // Get coords for Google Places: use provided lat/lng, or try IP fallback
+  let latForGoogle = lat;
+  let lngForGoogle = lng;
+  if ((latForGoogle == null || lngForGoogle == null) && !shopRows.length && !drinkRows.length) {
+    try {
+      const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.headers['x-real-ip'] || req.socket?.remoteAddress || '';
+      const isPrivate = /^(127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|::1|::ffff:127)/.test(ip.toString());
+      const resp = await fetch(`http://ip-api.com/json${isPrivate ? '' : '/' + ip}?fields=lat,lon,status`);
+      const ipData = await resp.json();
+      if (ipData?.status === 'success' && ipData?.lat != null && ipData?.lon != null) {
+        latForGoogle = ipData.lat;
+        lngForGoogle = ipData.lon;
+      }
+    } catch (_) { /* ignore */ }
+  }
+  // Fetch real coffee shops: Google (if key set) + OpenStreetMap (always, no key)
+  if (latForGoogle != null && lngForGoogle != null) {
+    const [googlePlaces, osmPlaces] = await Promise.all([
+      fetchPlacesFromGoogle(q, latForGoogle, lngForGoogle),
+      fetchCoffeeShopsFromOSM(latForGoogle, lngForGoogle, 8000),
+    ]);
+    for (const p of googlePlaces) {
+      if (p.lat != null && p.lng != null) {
+        p.distanceKm = Math.round(haversineKm(latForGoogle, lngForGoogle, p.lat, p.lng) * 10) / 10;
+      }
+    }
+    const osmWithCoords = osmPlaces.filter((p) => p.shopName);
+    shops = [...shops, ...googlePlaces, ...osmWithCoords];
+    const seen = new Set();
+    shops = shops.filter((s) => {
+      const key = `${s.shopName}|${s.address || ''}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    shops.sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
+  } else if (shops.length > 0) {
+    shops.sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
+  }
 
   const drinkIds = [...new Set(drinkRows.map((r) => r.drink_id))];
   let drinks = [];
@@ -459,4 +506,7 @@ initDb().then(async () => {
   app.listen(PORT, () => {
     console.log(`Server at http://localhost:${PORT}`);
   });
+}).catch((e) => {
+  console.error('Failed to start:', e);
+  process.exit(1);
 });

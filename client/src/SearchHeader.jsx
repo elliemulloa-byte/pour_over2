@@ -47,13 +47,14 @@ export function SearchHeader({
             placeholder="e.g. latte, peppermint mocha, Houndstooth Austin"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') onSubmit(e); }}
             className="search-input"
             aria-describedby={hideHint ? undefined : 'search-hint'}
           />
           <button
             type="submit"
             className="search-btn"
-            disabled={loading || query.trim().length < 2}
+            disabled={loading}
             aria-label="Search"
           >
             {loading ? (
@@ -65,7 +66,7 @@ export function SearchHeader({
         </div>
         <div className="search-row search-row--location">
           <label htmlFor="location-search" className="visually-hidden">
-            City or address (required)
+            Address or city
           </label>
           <input
             id="location-search"
@@ -74,9 +75,10 @@ export function SearchHeader({
             autoComplete="address-line1"
             autoCorrect="on"
             spellCheck="true"
-            placeholder="Enter city or address (required)"
+            placeholder="Enter address or city"
             value={locationInput}
             onChange={(e) => setLocationInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') onSubmit(e); }}
             className="search-input search-input--location"
           />
           <button
@@ -103,7 +105,7 @@ export function SearchHeader({
       {geoLoading && <p className="location-status">Getting your location…</p>}
       {geoError && !locationInput && (
         <p className="location-error" role="alert">
-          Location unavailable. Enter a city or address to search.
+          Location unavailable. Enter a city or address below to search.
         </p>
       )}
       {hasCoords && !locationInput && (

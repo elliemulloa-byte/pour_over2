@@ -7,7 +7,7 @@ export async function seedIfEmpty() {
   runSeed();
 }
 
-function runSeed() {
+export function runSeed() {
   db.exec('DELETE FROM drink_reviews; DELETE FROM drinks; DELETE FROM shops;');
 
   const shops = [
@@ -84,4 +84,16 @@ function runSeed() {
   }
 
   console.log('Seeded shops, drinks, and reviews.');
+}
+
+// Run seed when executed directly: node server/seed.js
+const isMain = process.argv[1]?.includes('seed.js');
+if (isMain) {
+  initDb().then(() => {
+    runSeed();
+    process.exit(0);
+  }).catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
 }
