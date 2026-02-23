@@ -1,0 +1,136 @@
+.profile-page {
+  padding: 1.5rem 1rem 3rem;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.profile-guest {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 2rem;
+}
+
+.profile-guest a {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.profile-header {
+  text-align: center;
+  padding: 1.5rem 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.5rem;
+}
+
+.profile-avatar {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--terracotta));
+  color: var(--surface);
+  font-family: var(--font-heading);
+  font-size: 1.75rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+}
+
+.profile-name {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+  color: var(--text);
+}
+
+.profile-email {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin: 0 0 1rem;
+}
+
+.profile-logout {
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.profile-logout:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.profile-reviews-title {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
+  color: var(--text);
+}
+
+.profile-loading,
+.profile-empty {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.profile-review-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.profile-review-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+}
+
+.profile-review-drink {
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.profile-review-shop {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+}
+
+.profile-review-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.profile-review-meta .stars {
+  color: var(--star);
+}
+
+.profile-review-date {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.profile-review-comment {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  color: var(--text);
+  line-height: 1.4;
+}

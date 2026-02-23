@@ -10,6 +10,16 @@
   padding-bottom: 1.25rem;
 }
 
+.header--compact {
+  padding-top: 0.5rem;
+  padding-bottom: 1rem;
+}
+
+.header--compact .tagline,
+.header--compact .logo {
+  display: none;
+}
+
 .logo {
   font-family: 'Fraunces', serif;
   font-size: 1.75rem;
@@ -32,16 +42,68 @@
 
 .search-form {
   display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.search-form.search-form--maps .search-row {
+  display: flex;
   gap: 0.5rem;
   align-items: center;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 1rem;
   padding: 0.35rem 0.35rem 0.35rem 1rem;
-  margin-bottom: 0.5rem;
 }
 
-.search-input {
+.search-form.search-form--maps .search-row--location {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-top: none;
+  padding-top: 0.25rem;
+}
+
+.search-btn-location {
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.search-btn-location:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--surface);
+}
+
+.search-btn-location:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.spinner--sm {
+  width: 1rem;
+  height: 1rem;
+  border-width: 1.5px;
+}
+
+.search-form.search-form--maps .search-row:first-child {
+  margin-bottom: 0;
+}
+
+.search-row .search-input:focus {
+  outline: none;
+}
+
+.search-form .search-input {
   flex: 1;
   min-width: 0;
   background: none;
@@ -51,11 +113,12 @@
   outline: none;
 }
 
-.search-input:focus {
-  outline: none;
+.search-input--location {
+  font-size: 0.95rem;
+  padding: 0.6rem 0;
 }
 
-.search-btn {
+.search-row .search-btn {
   flex-shrink: 0;
   width: 2.75rem;
   height: 2.75rem;
@@ -104,13 +167,13 @@
 
 .search-hint {
   margin: 0 0 1rem;
-  font-size: 0.8rem;
-  color: var(--text-muted);
+  font-size: 0.9rem;
+  color: var(--text);
 }
 
 .location-status {
-  font-size: 0.8rem;
-  color: var(--text-muted);
+  font-size: 0.9rem;
+  color: var(--text);
   margin: 0.25rem 0 0;
 }
 
@@ -119,8 +182,8 @@
 }
 
 .location-error {
-  font-size: 0.8rem;
-  color: var(--text-muted);
+  font-size: 0.9rem;
+  color: var(--text);
   margin: 0.25rem 0 0;
 }
 
@@ -130,8 +193,8 @@
 }
 
 .suggestions-label {
-  font-size: 0.85rem;
-  color: var(--text-muted);
+  font-size: 0.9rem;
+  color: var(--text);
   margin: 0 0 0.5rem;
 }
 
@@ -165,9 +228,62 @@
   background: var(--accent-soft);
 }
 
-/* Results */
-.results {
-  margin-top: 0.5rem;
+/* Suggestion color variation (cycle) */
+.suggestions-list li:nth-child(3n + 1) .suggestion-btn:hover { border-color: var(--accent); color: var(--accent); }
+.suggestions-list li:nth-child(3n + 2) .suggestion-btn:hover { border-color: var(--terracotta); color: var(--terracotta); }
+.suggestions-list li:nth-child(3n + 3) .suggestion-btn:hover { border-color: var(--sage); color: var(--sage); }
+
+/* Results - Yelp-style */
+.search-results {
+  padding: 0 1rem 2rem;
+}
+
+.results-section {
+  margin-bottom: 1.5rem;
+}
+
+.results-section-title {
+  font-family: var(--font-heading);
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem;
+  color: var(--text);
+}
+
+.results-list--yelp {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.results-list--yelp .result-card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  margin-bottom: 0.75rem;
+}
+
+.results-list--yelp .result-card:hover {
+  background: var(--surface-hover);
+}
+
+.result-card--shop .result-shop-name,
+.result-card--drink .result-drink {
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.result-card--shop .result-address,
+.result-card--drink .result-address {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.result-card--shop .result-shop,
+.result-card--drink .result-shop {
+  font-size: 1rem;
+  margin-top: 0.15rem;
 }
 
 .results-count {
@@ -193,6 +309,16 @@
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  border-left: 3px solid var(--accent);
+  box-shadow: var(--shadow-soft);
+}
+
+.result-card:nth-child(3n + 2) {
+  border-left-color: var(--terracotta);
+}
+
+.result-card:nth-child(3n + 3) {
+  border-left-color: var(--sage);
 }
 
 .result-drink {
@@ -259,6 +385,102 @@
 
 .result-map-link:active {
   text-decoration: underline;
+}
+
+/* Add review (logged-in) */
+.result-add-review {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.result-add-review-btn {
+  padding: 0.4rem 0.75rem;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.result-add-review-btn:hover {
+  background: var(--accent);
+  color: var(--surface);
+}
+
+.result-review-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.result-review-stars {
+  display: flex;
+  gap: 0.2rem;
+}
+
+.result-star-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--border);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.result-star-btn.filled,
+.result-star-btn:hover {
+  color: var(--star);
+}
+
+.result-review-comment-input {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  max-width: 100%;
+}
+
+.result-review-message {
+  font-size: 0.85rem;
+  color: var(--accent);
+  margin: 0;
+}
+
+.result-review-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.result-review-submit {
+  padding: 0.4rem 0.75rem;
+  background: var(--accent);
+  color: var(--surface);
+  border: none;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.result-review-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.result-review-cancel {
+  padding: 0.4rem 0.75rem;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  cursor: pointer;
 }
 
 /* Empty state */

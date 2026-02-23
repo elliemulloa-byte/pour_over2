@@ -23,6 +23,7 @@ const SCHEMA = `
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     address TEXT,
+    city TEXT,
     lat REAL,
     lng REAL,
     created_at TEXT DEFAULT (datetime('now'))
@@ -40,10 +41,27 @@ const SCHEMA = `
   CREATE TABLE IF NOT EXISTS drink_reviews (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     drink_id INTEGER NOT NULL,
+    user_id INTEGER,
     rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
     comment TEXT,
     created_at TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (drink_id) REFERENCES drinks(id)
+    FOREIGN KEY (drink_id) REFERENCES drinks(id),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    display_name TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS sessions (
+    id TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    expires_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id)
   );
 
   CREATE INDEX IF NOT EXISTS idx_drinks_drink_type ON drinks(drink_type);
@@ -65,6 +83,28 @@ export async function initDb() {
     _db = new SQL.Database();
   }
   _db.exec(SCHEMA);
+  // Migration: add user_id to drink_reviews if missing (existing DBs)
+  try {
+    _db.exec('ALTER TABLE drink_reviews ADD COLUMN user_id INTEGER');
+  } catch (_) {
+    // Column already exists
+  }
+  try {
+    _db.exec('ALTER TABLE shops ADD COLUMN city TEXT');
+  } catch (_) {
+    // Column already exists
+  }
+  try {
+    _db.exec('CREATE INDEX IF NOT EXISTS idx_reviews_user ON drink_reviews(user_id)');
+  } catch (_) {
+    // Index already exists
+  }
+  // search_count for future relevance / most-searched sorting
+  try {
+    _db.exec('ALTER TABLE drinks ADD COLUMN search_count INTEGER DEFAULT 0');
+  } catch (_) {
+    // Column already exists
+  }
   return _db;
 }
 

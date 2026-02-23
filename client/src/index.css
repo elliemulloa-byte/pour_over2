@@ -1,14 +1,26 @@
 :root {
-  --bg: #f8f4ee;
-  --surface: #fffef9;
-  --surface-hover: #f5f0e8;
-  --border: #d4c9b8;
-  --text: #2c2420;
-  --text-muted: #6b5d52;
-  --accent: #6f4e37;
-  --accent-soft: rgba(111, 78, 55, 0.12);
-  --accent-hover: #5a3f2d;
+  --bg: #e8dfd4;
+  --surface: #faf7f2;
+  --surface-hover: #ebe3d9;
+  --border: #c4b5a0;
+  --text: #1a1614;
+  --text-muted: #4a4038;
+  --accent: #5c4033;
+  --accent-soft: rgba(92, 64, 51, 0.2);
+  --accent-hover: #4a3429;
+  --brown-dark: rgba(60, 42, 32, 0.35);
+  --brown-mid: rgba(76, 54, 42, 0.28);
+  --brown-light: rgba(68, 48, 36, 0.22);
   --star: #b8860b;
+  --terracotta: #a85438;
+  --terracotta-soft: rgba(168, 84, 56, 0.15);
+  --sage: #4d6b5c;
+  --sage-soft: rgba(77, 107, 92, 0.12);
+  --error: #b91c1c;
+  --font-heading: 'Fraunces', serif;
+  --radius: 0.65rem;
+  --radius-lg: 1.25rem;
+  --shadow-soft: 0 2px 12px rgba(26, 22, 20, 0.1);
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -27,6 +39,8 @@ html {
 body {
   margin: 0;
   font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
   background: var(--bg);
   color: var(--text);
   min-height: 100dvh;
@@ -48,4 +62,16 @@ button, input, select, textarea {
 
 input::placeholder {
   color: var(--text-muted);
+}
+
+.bean-verdict-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bean-verdict-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }

@@ -1,0 +1,233 @@
+.shop-detail {
+  padding: 1.5rem 1rem 3rem;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.shop-loading,
+.shop-error {
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.shop-header {
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.shop-name {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+}
+
+.shop-address {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  margin: 0 0 0.5rem;
+}
+
+.shop-rating {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.95rem;
+}
+
+.shop-rating .stars {
+  color: var(--star);
+}
+
+.shop-map-link {
+  display: inline-block;
+  color: var(--accent);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.shop-map-link:hover {
+  text-decoration: underline;
+}
+
+.shop-section-title {
+  font-family: var(--font-heading);
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 1.5rem 0 1rem;
+}
+
+.shop-drinks-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.shop-drink-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.shop-drink-name {
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.shop-drink-meta {
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+}
+
+.shop-drink-meta .stars {
+  color: var(--star);
+}
+
+.shop-add-review-btn,
+.shop-add-drink-btn {
+  margin-top: 0.5rem;
+  padding: 0.35rem 0.6rem;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.shop-review-form {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.shop-review-stars {
+  display: flex;
+  gap: 0.2rem;
+}
+
+.star-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--border);
+  cursor: pointer;
+}
+
+.star-btn.filled {
+  color: var(--star);
+}
+
+.shop-review-comment {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+}
+
+.shop-review-submit {
+  padding: 0.4rem 0.75rem;
+  background: var(--accent);
+  color: var(--surface);
+  border: none;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.shop-add-drink-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.shop-add-drink-input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 1rem;
+}
+
+.shop-add-drink-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.shop-add-drink-submit,
+.shop-add-drink-cancel {
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.shop-add-drink-submit {
+  background: var(--accent);
+  color: var(--surface);
+  border: none;
+}
+
+.shop-add-drink-cancel {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.shop-reviews-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.shop-review-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.shop-review-card .stars {
+  color: var(--star);
+}
+
+.shop-review-card .shop-review-text {
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+/* PlaceDetail: photo gallery (interior, menu, etc.) */
+.place-photos {
+  margin-top: 1.5rem;
+}
+.place-photos-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.place-photo-wrap {
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+.place-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.place-photos-hint {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0;
+}
