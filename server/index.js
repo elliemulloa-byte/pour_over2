@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -8,7 +9,8 @@ import { initDb, db } from './db.js';
 import { seedIfEmpty } from './seed.js';
 import { authRoutes, requireAuth } from './auth.js';
 import { fetchPlacesFromGoogle, fetchPlaceDetails } from './places.js';
-import { fetchCoffeeShopsFromOSM } from './overpass.js';
+import { fetchPlacesFromFoursquare, fetchFoursquarePlaceDetails } from './foursquare.js';
+import { fetchCoffeeShopsFromOSM, fetchOsmPlaceById } from './overpass.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -23,6 +25,8 @@ if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
 }
 
+const KM_TO_MILES = 0.621371;
+
 function haversineKm(lat1, lng1, lat2, lng2) {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -32,6 +36,10 @@ function haversineKm(lat1, lng1, lat2, lng2) {
     Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
+}
+
+function kmToMiles(km) {
+  return km != null ? Math.round(km * KM_TO_MILES * 10) / 10 : null;
 }
 
 app.get('/api/drinks/search', (req, res) => {
@@ -99,6 +107,7 @@ app.get('/api/drinks/search', (req, res) => {
       reviewCount: st.review_count,
       avgRating: st.avg_rating != null ? Math.round(Number(st.avg_rating) * 10) / 10 : null,
       distanceKm: distanceKm != null ? Math.round(distanceKm * 10) / 10 : null,
+      distanceMiles: kmToMiles(distanceKm),
     };
   });
 
@@ -206,6 +215,7 @@ app.get('/api/shops/search', (req, res) => {
       avgRating: st.avg_rating != null ? Math.round(Number(st.avg_rating) * 10) / 10 : null,
       drinkCount: st.drink_count,
       distanceKm: distanceKm != null ? Math.round(distanceKm * 10) / 10 : null,
+      distanceMiles: kmToMiles(distanceKm),
     };
   });
 
@@ -248,6 +258,16 @@ app.get('/api/shops/:shopId', (req, res) => {
       Math.max(1, drinks.reduce((sum, d) => sum + (d.review_count || 0), 0))
     : null;
 
+  const drinkList = drinks.map((d) => ({
+    drinkId: d.drink_id,
+    displayName: d.display_name,
+    drinkType: d.drink_type,
+    avgRating: d.avg_rating != null ? Math.round(Number(d.avg_rating) * 10) / 10 : null,
+    reviewCount: d.review_count,
+    isSeasonal: /\b(peppermint|pumpkin|gingerbread|eggnog|holiday)\b/i.test(d.display_name || ''),
+  }));
+  const sortedDrinks = sortDrinks(drinkList, (x) => x.displayName || x.drinkType);
+
   res.json({
     shop: {
       id: shop.id,
@@ -259,13 +279,7 @@ app.get('/api/shops/:shopId', (req, res) => {
       avgRating: overall != null ? Math.round(overall * 10) / 10 : null,
       reviewCount: allReviews.length,
     },
-    drinks: drinks.map((d) => ({
-      drinkId: d.drink_id,
-      displayName: d.display_name,
-      drinkType: d.drink_type,
-      avgRating: d.avg_rating != null ? Math.round(Number(d.avg_rating) * 10) / 10 : null,
-      reviewCount: d.review_count,
-    })),
+    drinks: sortedDrinks,
     reviews: allReviews,
   });
 });
@@ -317,15 +331,134 @@ app.get('/api/location/ip', async (req, res) => {
   res.status(503).json({ error: 'Could not determine location' });
 });
 
-// Google Place Details (photos, interior, menu) - requires GOOGLE_PLACES_API_KEY
+// Popular drinks first, then specialty/seasonal (Yelp-style)
+const POPULAR_DRINK_ORDER = ['latte', 'cappuccino', 'espresso', 'americano', 'cold brew', 'mocha', 'flat white', 'cortado', 'drip coffee', 'oat milk latte', 'chai latte', 'matcha latte', 'macchiato', 'nitro cold brew', 'pour over'];
+
+function sortDrinks(drinks, getName) {
+  const byName = (n) => (n || '').toLowerCase();
+  return [...drinks].sort((a, b) => {
+    const idxA = POPULAR_DRINK_ORDER.indexOf(byName(getName(a)));
+    const idxB = POPULAR_DRINK_ORDER.indexOf(byName(getName(b)));
+    if (idxA >= 0 && idxB >= 0) return idxA - idxB;
+    if (idxA >= 0) return -1;
+    if (idxB >= 0) return 1;
+    return (getName(a) || '').localeCompare(getName(b) || '');
+  });
+}
+
+// Place Details - Google or OSM (osm-12345)
 app.get('/api/places/:placeId', async (req, res) => {
-  const placeId = req.params.placeId;
-  if (!placeId || typeof placeId !== 'string') {
-    return res.status(400).json({ error: 'Place ID required' });
+  const placeId = (req.params.placeId || '').trim();
+  if (!placeId) return res.status(400).json({ error: 'Place ID required' });
+  let place;
+  if (placeId.startsWith('osm-')) {
+    place = await fetchOsmPlaceById(placeId);
+  } else if (placeId.startsWith('fsq-')) {
+    place = await fetchFoursquarePlaceDetails(placeId);
+  } else {
+    place = await fetchPlaceDetails(placeId);
   }
-  const place = await fetchPlaceDetails(placeId.trim());
   if (!place) return res.status(404).json({ error: 'Place not found' });
-  res.json({ place });
+  let userReviews = [];
+  let placeDrinks = [];
+  try {
+    userReviews = db.prepare(`
+      SELECT r.id, r.rating, r.comment, r.created_at, u.display_name AS author
+      FROM place_reviews r JOIN users u ON u.id = r.user_id
+      WHERE r.place_id = ? ORDER BY r.created_at DESC LIMIT 50
+    `).all(placeId);
+    const drinkRows = db.prepare('SELECT id, drink_type, display_name, is_seasonal FROM place_drinks WHERE place_id = ?').all(placeId);
+    if (drinkRows.length > 0) {
+      const ids = drinkRows.map((d) => d.id);
+      const stats = db.prepare(`
+        SELECT place_drink_id, COUNT(*) AS review_count, AVG(rating) AS avg_rating
+        FROM place_drink_reviews WHERE place_drink_id IN (${ids.map(() => '?').join(',')})
+        GROUP BY place_drink_id
+      `).all(...ids);
+      const byId = Object.fromEntries(stats.map((s) => [s.place_drink_id, s]));
+      placeDrinks = sortDrinks(drinkRows.map((d) => ({
+        id: d.id,
+        drinkType: d.drink_type,
+        displayName: d.display_name,
+        isSeasonal: !!d.is_seasonal,
+        avgRating: byId[d.id]?.avg_rating != null ? Math.round(Number(byId[d.id].avg_rating) * 10) / 10 : null,
+        reviewCount: byId[d.id]?.review_count || 0,
+      })), (x) => x.displayName || x.drinkType);
+    }
+  } catch (_) { /* tables may not exist */ }
+  if ((place.source === 'osm' || place.source === 'foursquare') && place.avgRating == null) {
+    const n = userReviews.length;
+    if (n > 0) {
+      const sum = userReviews.reduce((a, r) => a + (r.rating || 0), 0);
+      place.avgRating = Math.round((sum / n) * 10) / 10;
+      place.reviewCount = n;
+    }
+  }
+  res.json({ place: { ...place, userReviews, placeDrinks } });
+});
+
+app.post('/api/places/:placeId/drinks', requireAuth, (req, res) => {
+  const placeId = (req.params.placeId || '').trim();
+  const { drinkType, displayName, isSeasonal } = req.body || {};
+  if (!placeId) return res.status(400).json({ error: 'Place ID required' });
+  const name = (typeof displayName === 'string' ? displayName.trim() : '') || (typeof drinkType === 'string' ? drinkType.trim() : '') || null;
+  if (!name || name.length < 2) return res.status(400).json({ error: 'Drink name required (min 2 chars)' });
+  const display = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  const type = name.toLowerCase().replace(/\s+/g, ' ');
+  try {
+    const existing = db.prepare('SELECT id FROM place_drinks WHERE place_id = ? AND (LOWER(drink_type) = ? OR LOWER(display_name) = ?)').all(placeId, type, display);
+    if (existing.length > 0) return res.status(409).json({ error: 'Drink already exists at this place' });
+    const seasonal = /\b(peppermint|pumpkin|gingerbread|eggnog|holiday)\b/i.test(display) ? 1 : 0;
+    const { lastInsertRowid } = db.prepare('INSERT INTO place_drinks (place_id, drink_type, display_name, is_seasonal) VALUES (?, ?, ?, ?)').run(placeId, type, display, seasonal);
+    const row = db.prepare('SELECT id, place_id, drink_type, display_name, is_seasonal FROM place_drinks WHERE id = ?').all(lastInsertRowid)[0];
+    res.status(201).json({ drink: row });
+  } catch (e) {
+    if (e.message?.includes('no such table')) return res.status(503).json({ error: 'Restart the server.' });
+    throw e;
+  }
+});
+
+app.post('/api/places/:placeId/drinks/:drinkId/reviews', requireAuth, (req, res) => {
+  const placeId = (req.params.placeId || '').trim();
+  const drinkId = parseInt(req.params.drinkId, 10);
+  const { rating, comment } = req.body || {};
+  if (!placeId || !Number.isInteger(drinkId) || drinkId < 1) return res.status(400).json({ error: 'Invalid request' });
+  const r = typeof rating === 'number' ? Math.round(rating) : parseInt(rating, 10);
+  if (!Number.isInteger(r) || r < 1 || r > 5) return res.status(400).json({ error: 'Rating must be 1–5' });
+  try {
+    const drink = db.prepare('SELECT id FROM place_drinks WHERE id = ? AND place_id = ?').all(drinkId, placeId)[0];
+    if (!drink) return res.status(404).json({ error: 'Drink not found' });
+    const commentText = typeof comment === 'string' ? comment.trim() || null : null;
+    db.prepare('INSERT INTO place_drink_reviews (place_drink_id, user_id, rating, comment) VALUES (?, ?, ?, ?)').run(drinkId, req.session.userId, r, commentText);
+    res.status(201).json({ ok: true });
+  } catch (e) {
+    if (e.message?.includes('no such table')) return res.status(503).json({ error: 'Restart the server.' });
+    throw e;
+  }
+});
+
+app.post('/api/places/:placeId/reviews', requireAuth, (req, res) => {
+  const placeId = (req.params.placeId || '').trim();
+  const { rating, comment } = req.body || {};
+  if (!placeId) return res.status(400).json({ error: 'Place ID required' });
+  const r = typeof rating === 'number' ? Math.round(rating) : parseInt(rating, 10);
+  if (!Number.isInteger(r) || r < 1 || r > 5) {
+    return res.status(400).json({ error: 'Rating must be 1–5' });
+  }
+  const commentText = typeof comment === 'string' ? comment.trim() || null : null;
+  try {
+    const { lastInsertRowid } = db.prepare(
+      'INSERT INTO place_reviews (place_id, user_id, rating, comment) VALUES (?, ?, ?, ?)'
+    ).run(placeId, req.session.userId, r, commentText);
+    const row = db.prepare('SELECT id, place_id, rating, comment, created_at FROM place_reviews WHERE id = ?')
+      .all(lastInsertRowid)[0];
+    res.status(201).json({ review: row });
+  } catch (e) {
+    if (e.message?.includes('no such table')) {
+      return res.status(503).json({ error: 'Reviews not available yet. Restart the server.' });
+    }
+    throw e;
+  }
 });
 
 // Unified search: returns both shops and drinks (Yelp-style)
@@ -364,7 +497,7 @@ app.get('/api/search', async (req, res) => {
         shopId: r.id, shopName: r.name, address: r.address, city: r.city,
         avgRating: st.avg_rating != null ? Math.round(Number(st.avg_rating) * 10) / 10 : null,
         reviewCount: st.review_count, distanceKm: distanceKm != null ? Math.round(distanceKm * 10) / 10 : null,
-        source: 'local',
+        distanceMiles: kmToMiles(distanceKm), source: 'local',
       };
     });
   }
@@ -391,19 +524,22 @@ app.get('/api/search', async (req, res) => {
       }
     } catch (_) { /* ignore */ }
   }
-  // Fetch real coffee shops: Google (if key set) + OpenStreetMap (always, no key)
+  // Fetch real coffee shops: Foursquare (no CC) or Google + OpenStreetMap (always)
   if (latForGoogle != null && lngForGoogle != null) {
-    const [googlePlaces, osmPlaces] = await Promise.all([
-      fetchPlacesFromGoogle(q, latForGoogle, lngForGoogle),
-      fetchCoffeeShopsFromOSM(latForGoogle, lngForGoogle, 8000),
-    ]);
-    for (const p of googlePlaces) {
+    const foursquarePromise = fetchPlacesFromFoursquare(q, latForGoogle, lngForGoogle);
+    const googlePromise = fetchPlacesFromGoogle(q, latForGoogle, lngForGoogle);
+    const osmPromise = fetchCoffeeShopsFromOSM(latForGoogle, lngForGoogle, 8000);
+    const [foursquarePlaces, googlePlaces, osmPlaces] = await Promise.all([foursquarePromise, googlePromise, osmPromise]);
+    const apiPlaces = foursquarePlaces.length > 0 ? foursquarePlaces : googlePlaces;
+    for (const p of apiPlaces) {
       if (p.lat != null && p.lng != null) {
-        p.distanceKm = Math.round(haversineKm(latForGoogle, lngForGoogle, p.lat, p.lng) * 10) / 10;
+        const km = Math.round(haversineKm(latForGoogle, lngForGoogle, p.lat, p.lng) * 10) / 10;
+        p.distanceKm = km;
+        p.distanceMiles = kmToMiles(km);
       }
     }
     const osmWithCoords = osmPlaces.filter((p) => p.shopName);
-    shops = [...shops, ...googlePlaces, ...osmWithCoords];
+    shops = [...shops, ...apiPlaces, ...osmWithCoords];
     const seen = new Set();
     shops = shops.filter((s) => {
       const key = `${s.shopName}|${s.address || ''}`;
@@ -438,6 +574,7 @@ app.get('/api/search', async (req, res) => {
         shopId: d.shop_id, shopName: d.shop_name, shopAddress: d.shop_address,
         avgRating: st.avg_rating != null ? Math.round(Number(st.avg_rating) * 10) / 10 : null,
         reviewCount: st.review_count, distanceKm: distanceKm != null ? Math.round(distanceKm * 10) / 10 : null,
+        distanceMiles: kmToMiles(distanceKm),
       };
     });
     const relevance = (r) => {

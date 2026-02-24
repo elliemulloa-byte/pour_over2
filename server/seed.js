@@ -41,7 +41,6 @@ export function runSeed() {
     { type: 'cold brew', display: 'Cold Brew' },
     { type: 'cortado', display: 'Cortado' },
     { type: 'mocha', display: 'Mocha' },
-    { type: 'peppermint mocha', display: 'Peppermint Mocha' },
     { type: 'oat milk latte', display: 'Oat Milk Latte' },
     { type: 'drip coffee', display: 'Drip Coffee' },
     { type: 'matcha latte', display: 'Matcha Latte' },

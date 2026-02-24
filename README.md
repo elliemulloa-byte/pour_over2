@@ -34,9 +34,18 @@ PORT=3000 npm start
 
 Then open http://localhost:3000 (or the port you set).
 
+## Foursquare Places API (no credit card, $200/month free)
+
+Set `FOURSQUARE_API_KEY` for real shops, photos, ratings. Get a key at [foursquare.com/developers](https://foursquare.com/developers).
+
+```bash
+$env:FOURSQUARE_API_KEY = "your-key"
+npm run dev
+```
+
 ## Stack
 
-- **Backend**: Node, Express, SQLite (better-sqlite3). Tables: `shops`, `drinks`, `drink_reviews`.
+- **Backend**: Node, Express, SQLite (sql.js). Tables: shops, drinks, drink_reviews, place_drinks, place_drink_reviews.
 - **Frontend**: React, Vite. Search input, suggestions, results list, optional geolocation for “nearby”.
 
 ## Data

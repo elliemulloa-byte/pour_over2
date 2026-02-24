@@ -16,19 +16,18 @@ export function SearchResults({ shops, drinks, loading, query, hasLocation, user
           <h2 className="results-section-title">Coffee shops</h2>
           <ul className="results-list results-list--yelp">
             {shops.map((s) => {
-              const isGoogle = s.source === 'google';
-              const isOsm = s.source === 'osm';
-              const linkTo = isGoogle ? `/place/${encodeURIComponent(s.placeId)}` : isOsm ? null : `/shop/${s.shopId}`;
-              const key = isGoogle ? `g-${s.placeId}` : isOsm ? `osm-${s.placeId}` : s.shopId;
-              const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address || s.shopName)}`;
-              const CardWrapper = linkTo ? Link : 'a';
-              const cardProps = linkTo ? { to: linkTo } : { href: mapsUrl, target: '_blank', rel: 'noopener noreferrer' };
+              const isPlace = s.source === 'google' || s.source === 'osm' || s.source === 'foursquare';
+              const linkTo = isPlace ? `/place/${encodeURIComponent(s.placeId)}` : `/shop/${s.shopId}`;
+              const key = isPlace ? (s.placeId || `p-${s.shopName}`) : s.shopId;
+              const searchResult = isPlace ? { placeId: s.placeId, name: s.shopName, address: s.address, avgRating: s.avgRating, reviewCount: s.reviewCount || 0, source: s.source } : null;
+              const mapsUrl = (s.source === 'google') && s.placeId
+                ? `https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(s.placeId)}`
+                : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address || s.shopName)}`;
               return (
               <li key={key}>
-                <CardWrapper {...cardProps} className="result-card result-card--shop">
+                <Link to={linkTo} state={searchResult} className="result-card result-card--shop">
                   <div className="result-card-main">
                     <div className="result-shop-name">{s.shopName}</div>
-                    <div className="result-address">{s.address || ''}</div>
                     <div className="result-meta">
                       {s.avgRating != null && (
                         <span className="result-rating" aria-label={`${s.avgRating} out of 5`}>
@@ -37,21 +36,21 @@ export function SearchResults({ shops, drinks, loading, query, hasLocation, user
                           <span className="result-review-count">({s.reviewCount} reviews)</span>
                         </span>
                       )}
-                      {s.distanceKm != null && hasLocation && (
-                        <span className="result-distance">{s.distanceKm} km away</span>
+                      {(s.distanceMiles ?? s.distanceKm) != null && hasLocation && (
+                        <span className="result-distance">{(s.distanceMiles ?? (s.distanceKm * 0.621371).toFixed(1))} mi away</span>
                       )}
                     </div>
                   </div>
                   <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address || s.shopName)}`}
+                    href={mapsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="result-map-link"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    Map
+                    Directions
                   </a>
-                </CardWrapper>
+                </Link>
               </li>
             );
             })}
@@ -68,7 +67,6 @@ export function SearchResults({ shops, drinks, loading, query, hasLocation, user
                 <Link to={`/shop/${d.shopId}`} className="result-card result-card--drink">
                   <div className="result-drink">{d.displayName}</div>
                   <div className="result-shop">{d.shopName}</div>
-                  <div className="result-address">{d.shopAddress}</div>
                   <div className="result-meta">
                     {d.avgRating != null && (
                       <span className="result-rating">
@@ -77,8 +75,8 @@ export function SearchResults({ shops, drinks, loading, query, hasLocation, user
                         <span className="result-review-count">({d.reviewCount})</span>
                       </span>
                     )}
-                    {d.distanceKm != null && hasLocation && (
-                      <span className="result-distance">{d.distanceKm} km away</span>
+                    {(d.distanceMiles ?? d.distanceKm) != null && hasLocation && (
+                      <span className="result-distance">{(d.distanceMiles ?? (d.distanceKm * 0.621371).toFixed(1))} mi away</span>
                     )}
                   </div>
                   <a
@@ -88,7 +86,7 @@ export function SearchResults({ shops, drinks, loading, query, hasLocation, user
                     className="result-map-link"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    Map
+                    Directions
                   </a>
                 </Link>
               </li>

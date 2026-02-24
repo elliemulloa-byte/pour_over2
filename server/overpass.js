@@ -35,6 +35,7 @@ export async function fetchCoffeeShopsFromOSM(lat, lng, radiusM = 5000) {
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         distanceKm = Math.round(R * c * 10) / 10;
       }
+      const distanceMiles = distanceKm != null ? Math.round(distanceKm * 0.621371 * 10) / 10 : null;
       const addr = n.tags?.['addr:street']
         ? [n.tags['addr:housenumber'], n.tags['addr:street'], n.tags['addr:city']].filter(Boolean).join(', ')
         : n.tags?.['addr:full'] || '';
@@ -48,10 +49,49 @@ export async function fetchCoffeeShopsFromOSM(lat, lng, radiusM = 5000) {
         reviewCount: 0,
         source: 'osm',
         distanceKm,
+        distanceMiles,
       };
     });
     return items.filter((p) => p.shopName).slice(0, 25);
   } catch {
     return [];
   }
+}
+
+const OVERPASS_URLS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+
+export async function fetchOsmPlaceById(nodeId) {
+  if (!nodeId) return null;
+  const id = String(nodeId).replace(/^osm-/, '').trim();
+  if (!/^\d+$/.test(id)) return null;
+  const query = `[out:json][timeout:8];node(${id});out body;`;
+  for (const baseUrl of OVERPASS_URLS) {
+    try {
+      const res = await fetch(baseUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `data=${encodeURIComponent(query)}`,
+      });
+      if (!res.ok) continue;
+      const data = await res.json();
+      const n = data.elements?.[0];
+      if (!n || n.type !== 'node') continue;
+      const addr = n.tags?.['addr:street']
+        ? [n.tags['addr:housenumber'], n.tags['addr:street'], n.tags['addr:city']].filter(Boolean).join(', ')
+        : n.tags?.['addr:full'] || n.tags?.['addr:street'] || '';
+      return {
+        placeId: `osm-${n.id}`,
+        name: n.tags?.name || 'Coffee Shop',
+        address: addr,
+        lat: n.lat,
+        lng: n.lon,
+        source: 'osm',
+        photos: [],
+        reviews: [],
+      };
+    } catch {
+      continue;
+    }
+  }
+  return null;
 }

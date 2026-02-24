@@ -64,9 +64,42 @@ const SCHEMA = `
     FOREIGN KEY (user_id) REFERENCES users(id)
   );
 
+  CREATE TABLE IF NOT EXISTS place_reviews (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    place_id TEXT NOT NULL,
+    user_id INTEGER NOT NULL,
+    rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    comment TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS place_drinks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    place_id TEXT NOT NULL,
+    drink_type TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    is_seasonal INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS place_drink_reviews (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    place_drink_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    comment TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (place_drink_id) REFERENCES place_drinks(id),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+
   CREATE INDEX IF NOT EXISTS idx_drinks_drink_type ON drinks(drink_type);
+  CREATE INDEX IF NOT EXISTS idx_place_drinks_place ON place_drinks(place_id);
+  CREATE INDEX IF NOT EXISTS idx_place_drink_reviews_drink ON place_drink_reviews(place_drink_id);
   CREATE INDEX IF NOT EXISTS idx_drinks_shop ON drinks(shop_id);
   CREATE INDEX IF NOT EXISTS idx_reviews_drink ON drink_reviews(drink_id);
+  CREATE INDEX IF NOT EXISTS idx_place_reviews_place ON place_reviews(place_id);
 `;
 
 export async function initDb() {
@@ -105,6 +138,28 @@ export async function initDb() {
   } catch (_) {
     // Column already exists
   }
+  try {
+    _db.exec(`CREATE TABLE IF NOT EXISTS place_drinks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      place_id TEXT NOT NULL,
+      drink_type TEXT NOT NULL,
+      display_name TEXT NOT NULL,
+      is_seasonal INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    )`);
+    _db.exec(`CREATE TABLE IF NOT EXISTS place_drink_reviews (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      place_drink_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+      comment TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (place_drink_id) REFERENCES place_drinks(id),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )`);
+    _db.exec('CREATE INDEX IF NOT EXISTS idx_place_drinks_place ON place_drinks(place_id)');
+    _db.exec('CREATE INDEX IF NOT EXISTS idx_place_drink_reviews_drink ON place_drink_reviews(place_drink_id)');
+  } catch (_) { /* already exists */ }
   return _db;
 }
 

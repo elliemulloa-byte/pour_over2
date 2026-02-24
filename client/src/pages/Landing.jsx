@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { suggestDrinks, getPopularDrinks, correctDrinkTypo } from '../api';
+import { getDrinkPhotoUrl } from '../drinkPhotos';
 import '../App.css';
 import { SearchHeader } from '../SearchHeader';
 import { BeanVerdictLogo } from '../BeanVerdictLogo';
@@ -19,17 +20,17 @@ function parseSearchInput(input) {
   return { query: parts.join(' '), location };
 }
 
-// Unique images per drink – picsum uses seed for deterministic, working URLs
+// Year-round drinks – photos from Unsplash (real, unique per drink)
 const RECOMMENDED = [
-  { label: 'Peppermint Mocha', img: 'https://picsum.photos/seed/peppermint-mocha/600/600', query: 'peppermint mocha' },
-  { label: 'Latte', img: 'https://picsum.photos/seed/latte-coffee/600/600', query: 'latte' },
-  { label: 'Cold Brew', img: 'https://picsum.photos/seed/cold-brew/600/600', query: 'cold brew' },
-  { label: 'Pour Over', img: 'https://picsum.photos/seed/pour-over/600/600', query: 'pour over' },
-  { label: 'Cappuccino', img: 'https://picsum.photos/seed/cappuccino/600/600', query: 'cappuccino' },
-  { label: 'Mocha', img: 'https://picsum.photos/seed/mocha-coffee/600/600', query: 'mocha' },
-  { label: 'Espresso (shot)', img: 'https://picsum.photos/seed/espresso-shot/600/600', query: 'espresso' },
-  { label: 'Americano', img: 'https://picsum.photos/seed/americano/600/600', query: 'americano' },
-];
+  { label: 'Latte', query: 'latte' },
+  { label: 'Cold Brew', query: 'cold brew' },
+  { label: 'Pour Over', query: 'pour over' },
+  { label: 'Cappuccino', query: 'cappuccino' },
+  { label: 'Mocha', query: 'mocha' },
+  { label: 'Espresso', query: 'espresso' },
+  { label: 'Americano', query: 'americano' },
+  { label: 'Oat Milk Latte', query: 'oat milk latte' },
+].map((item) => ({ ...item, img: getDrinkPhotoUrl(item.query, item.label) }));
 
 export function Landing() {
   const navigate = useNavigate();

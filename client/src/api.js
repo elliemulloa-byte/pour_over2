@@ -76,6 +76,42 @@ export async function getPlace(placeId) {
   return res.json();
 }
 
+export async function addPlaceDrink(placeId, displayName, isSeasonal) {
+  const res = await fetch(`${API}/places/${encodeURIComponent(placeId)}/drinks`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ displayName, isSeasonal }),
+    credentials: 'include',
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to add drink');
+  return data;
+}
+
+export async function addPlaceDrinkReview(placeId, drinkId, rating, comment) {
+  const res = await fetch(`${API}/places/${encodeURIComponent(placeId)}/drinks/${drinkId}/reviews`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rating, comment: comment || undefined }),
+    credentials: 'include',
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to add review');
+  return data;
+}
+
+export async function addPlaceReview(placeId, rating, comment) {
+  const res = await fetch(`${API}/places/${encodeURIComponent(placeId)}/reviews`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rating, comment: comment || undefined }),
+    credentials: 'include',
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to add review');
+  return data;
+}
+
 export async function getShop(shopId) {
   const res = await fetch(`${API}/shops/${shopId}`, { credentials: 'include' });
   if (!res.ok) throw new Error('Shop not found');

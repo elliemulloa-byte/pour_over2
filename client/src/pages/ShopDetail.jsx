@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { getShop, addDrinkToShop, addReview } from '../api';
 import { useAuth } from '../AuthContext';
+import { getDrinkPhotoUrl } from '../drinkPhotos';
 import './ShopDetail.css';
 
 export function ShopDetail() {
@@ -71,11 +72,15 @@ export function ShopDetail() {
   if (loading) return <div className="shop-detail"><p className="shop-loading">Loading…</p></div>;
   if (!shop) return <div className="shop-detail"><p className="shop-error">Shop not found.</p></div>;
 
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(shop.address || shop.name)}`;
+  const popularDrinks = drinks.filter((d) => !d.isSeasonal);
+  const specialtyDrinks = drinks.filter((d) => d.isSeasonal);
+
   return (
     <div className="shop-detail">
       <header className="shop-header">
         <h1 className="shop-name">{shop.name}</h1>
-        <p className="shop-address">{shop.address}</p>
+        {shop.address && <p className="shop-address">{shop.address}</p>}
         {shop.avgRating != null && (
           <div className="shop-rating">
             <span className="stars">{'★'.repeat(Math.round(shop.avgRating))}{'☆'.repeat(5 - Math.round(shop.avgRating))}</span>
@@ -83,52 +88,57 @@ export function ShopDetail() {
             <span className="shop-review-count">({shop.reviewCount} reviews)</span>
           </div>
         )}
-        <a
-          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(shop.address || shop.name)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="shop-map-link"
-        >
-          Open in Maps
+        <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="shop-map-link">
+          Get Directions
         </a>
       </header>
 
-      <section className="shop-drinks" aria-label="Drinks">
-        <h2 className="shop-section-title">Drinks</h2>
-        <ul className="shop-drinks-list">
-          {drinks.map((d) => (
-            <li key={d.drinkId} className="shop-drink-card">
-              <div className="shop-drink-name">{d.displayName}</div>
-              <div className="shop-drink-meta">
-                {d.avgRating != null ? (
-                  <span className="stars">{'★'.repeat(Math.round(d.avgRating))}{'☆'.repeat(5 - Math.round(d.avgRating))} {d.avgRating} ({d.reviewCount})</span>
-                ) : (
-                  <span className="no-reviews">No reviews yet</span>
-                )}
-              </div>
-              {user && (
-                <button
-                  type="button"
-                  className="shop-add-review-btn"
-                  onClick={() => setReviewingDrink(reviewingDrink === d.drinkId ? null : d.drinkId)}
-                >
-                  {reviewingDrink === d.drinkId ? 'Cancel' : 'Add review'}
-                </button>
-              )}
-              {reviewingDrink === d.drinkId && (
-                <form className="shop-review-form" onSubmit={(e) => { e.preventDefault(); handleSubmitReview(d.drinkId); }}>
-                  <div className="shop-review-stars">
-                    {[1, 2, 3, 4, 5].map((n) => (
-                      <button key={n} type="button" className={`star-btn ${reviewRating >= n ? 'filled' : ''}`} onClick={() => setReviewRating(n)}>★</button>
-                    ))}
-                  </div>
-                  <input type="text" placeholder="Comment (optional)" value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} className="shop-review-comment" />
-                  <button type="submit" className="shop-review-submit" disabled={submittingReview || reviewRating < 1}>Save</button>
-                </form>
-              )}
-            </li>
-          ))}
-        </ul>
+      <section className="shop-drinks" aria-label="Menu">
+        <h2 className="shop-section-title">Menu & drink ratings</h2>
+        {popularDrinks.length > 0 && (
+          <>
+            <h3 className="shop-drinks-subtitle">Popular</h3>
+            <ul className="shop-drinks-list shop-drinks-list--with-photos">
+              {popularDrinks.map((d) => (
+                <ShopDrinkCard
+                  key={d.drinkId}
+                  drink={d}
+                  user={user}
+                  reviewingDrink={reviewingDrink}
+                  setReviewingDrink={setReviewingDrink}
+                  reviewRating={reviewRating}
+                  setReviewRating={setReviewRating}
+                  reviewComment={reviewComment}
+                  setReviewComment={setReviewComment}
+                  submittingReview={submittingReview}
+                  onSubmitReview={handleSubmitReview}
+                />
+              ))}
+            </ul>
+          </>
+        )}
+        {specialtyDrinks.length > 0 && (
+          <>
+            <h3 className="shop-drinks-subtitle">Specialty & seasonal</h3>
+            <ul className="shop-drinks-list shop-drinks-list--with-photos">
+              {specialtyDrinks.map((d) => (
+                <ShopDrinkCard
+                  key={d.drinkId}
+                  drink={d}
+                  user={user}
+                  reviewingDrink={reviewingDrink}
+                  setReviewingDrink={setReviewingDrink}
+                  reviewRating={reviewRating}
+                  setReviewRating={setReviewRating}
+                  reviewComment={reviewComment}
+                  setReviewComment={setReviewComment}
+                  submittingReview={submittingReview}
+                  onSubmitReview={handleSubmitReview}
+                />
+              ))}
+            </ul>
+          </>
+        )}
         {user && (
           <div className="shop-add-drink">
             {!showAddDrink ? (
@@ -140,7 +150,7 @@ export function ShopDetail() {
                 {addDrinkError && <p className="shop-error">{addDrinkError}</p>}
                 <input
                   type="text"
-                  placeholder="e.g. Oat Milk Latte"
+                  placeholder="e.g. Peppermint Mocha, Oat Milk Latte"
                   value={newDrinkName}
                   onChange={(e) => setNewDrinkName(e.target.value)}
                   className="shop-add-drink-input"
@@ -160,7 +170,7 @@ export function ShopDetail() {
       </section>
 
       {reviews.length > 0 && (
-        <section className="shop-reviews" aria-label="Reviews">
+        <section className="shop-reviews" aria-label="Recent reviews">
           <h2 className="shop-section-title">Recent reviews</h2>
           <ul className="shop-reviews-list">
             {reviews.slice(0, 10).map((r) => (
@@ -174,5 +184,45 @@ export function ShopDetail() {
         </section>
       )}
     </div>
+  );
+}
+
+function ShopDrinkCard({ drink, user, reviewingDrink, setReviewingDrink, reviewRating, setReviewRating, reviewComment, setReviewComment, submittingReview, onSubmitReview }) {
+  const isReviewing = reviewingDrink === drink.drinkId;
+  const photoUrl = getDrinkPhotoUrl(drink.drinkType, drink.displayName);
+  return (
+    <li className="shop-drink-card shop-drink-card--with-photo">
+      <img src={photoUrl} alt="" className="shop-drink-photo" />
+      <div className="shop-drink-content">
+        <div className="shop-drink-name">{drink.displayName}</div>
+        <div className="shop-drink-meta">
+          {drink.avgRating != null ? (
+            <span className="stars">{'★'.repeat(Math.round(drink.avgRating))}{'☆'.repeat(5 - Math.round(drink.avgRating))} {drink.avgRating} ({drink.reviewCount} reviews)</span>
+          ) : (
+            <span className="no-reviews">No reviews yet</span>
+          )}
+        </div>
+        {user && (
+          <button
+            type="button"
+            className="shop-add-review-btn"
+            onClick={() => setReviewingDrink(isReviewing ? null : drink.drinkId)}
+          >
+            {isReviewing ? 'Cancel' : 'Rate this drink'}
+          </button>
+        )}
+        {isReviewing && (
+          <form className="shop-review-form" onSubmit={(e) => { e.preventDefault(); onSubmitReview(drink.drinkId); }}>
+            <div className="shop-review-stars">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button key={n} type="button" className={`star-btn ${reviewRating >= n ? 'filled' : ''}`} onClick={() => setReviewRating(n)}>★</button>
+              ))}
+            </div>
+            <input type="text" placeholder="Comment (optional)" value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} className="shop-review-comment" />
+            <button type="submit" className="shop-review-submit" disabled={submittingReview || reviewRating < 1}>Save</button>
+          </form>
+        )}
+      </div>
+    </li>
   );
 }

@@ -10,7 +10,9 @@ const API_KEY = process.env.GOOGLE_PLACES_API_KEY;
 export async function fetchPlacesFromGoogle(query, lat, lng) {
   if (!API_KEY || !lat || !lng) return [];
   try {
-    const searchQuery = `${query} coffee shop`.trim();
+    const q = query.trim().toLowerCase();
+    const isDrink = /\b(latte|mocha|cappuccino|espresso|americano|cold brew|pour over|chai|matcha|drip|nitro|oat)\b/.test(q);
+    const searchQuery = isDrink ? `${query.trim()} coffee shop` : `${query.trim()} cafe`.trim();
     const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(searchQuery)}&location=${lat},${lng}&radius=50000&type=cafe&key=${API_KEY}`;
     const res = await fetch(url);
     const data = await res.json();
@@ -25,6 +27,7 @@ export async function fetchPlacesFromGoogle(query, lat, lng) {
       reviewCount: p.user_ratings_total || 0,
       source: 'google',
       distanceKm: null,
+      distanceMiles: null,
     }));
     return results;
   } catch {
@@ -39,7 +42,7 @@ export async function fetchPlacesFromGoogle(query, lat, lng) {
 export async function fetchPlaceDetails(placeId) {
   if (!API_KEY || !placeId) return null;
   try {
-    const fields = 'name,formatted_address,rating,user_ratings_total,geometry,photos';
+    const fields = 'name,formatted_address,rating,user_ratings_total,geometry,photos,reviews,opening_hours,price_level,website';
     const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=${fields}&key=${API_KEY}`;
     const res = await fetch(url);
     const data = await res.json();
@@ -49,6 +52,15 @@ export async function fetchPlaceDetails(placeId) {
       const ref = photo.photo_reference;
       return ref ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${encodeURIComponent(ref)}&key=${API_KEY}` : null;
     }).filter(Boolean);
+    const reviews = (p.reviews || []).slice(0, 5).map((r) => ({
+      author: r.author_name,
+      rating: r.rating,
+      text: r.text,
+      time: r.relative_time_description,
+    }));
+    const priceLevel = p.price_level != null ? Number(p.price_level) : null;
+    const priceDisplay = priceLevel != null ? '$'.repeat(Math.min(4, Math.max(1, priceLevel))) : null;
+    const hours = (p.opening_hours?.weekday_text || []).slice(0, 7);
     return {
       placeId,
       name: p.name,
@@ -58,6 +70,10 @@ export async function fetchPlaceDetails(placeId) {
       avgRating: p.rating != null ? Math.round(Number(p.rating) * 10) / 10 : null,
       reviewCount: p.user_ratings_total || 0,
       photos,
+      reviews,
+      priceLevel: priceDisplay,
+      openingHours: hours,
+      website: p.website || null,
     };
   } catch {
     return null;

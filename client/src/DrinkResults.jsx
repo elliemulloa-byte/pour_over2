@@ -65,8 +65,8 @@ function ResultCard({ r, user }) {
         {r.reviewCount === 0 && (
           <span className="result-no-reviews">No reviews yet</span>
         )}
-        {r.distanceKm != null && (
-          <span className="result-distance">{r.distanceKm} km away</span>
+        {(r.distanceMiles ?? r.distanceKm) != null && (
+          <span className="result-distance">{(r.distanceMiles ?? (r.distanceKm * 0.621371).toFixed(1))} mi away</span>
         )}
       </div>
       <a

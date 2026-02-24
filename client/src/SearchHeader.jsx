@@ -39,6 +39,7 @@ export function SearchHeader({
             ref={inputRef}
             id="drink-search"
             type="search"
+            tabIndex={1}
             inputMode="search"
             autoComplete="on"
             autoCapitalize="off"
@@ -71,6 +72,7 @@ export function SearchHeader({
           <input
             id="location-search"
             type="text"
+            tabIndex={2}
             inputMode="text"
             autoComplete="address-line1"
             autoCorrect="on"
