@@ -77,12 +77,11 @@ export function PlaceDetail() {
     if (!placeId || !decodedId) return;
     const draft = loadReviewDraft(decodedId);
     if (draft && user && draft.type === 'drink' && draft.drinkId) {
-        setReviewingDrinkId(draft.drinkId);
-        setDrinkReviewRating(draft.rating || 0);
-        setDrinkReviewComment(draft.comment || '');
-        setDrinkReviewDescriptors(draft.descriptors || []);
-        setDrinkReviewPhoto(draft.photo || null);
-      }
+      setReviewingDrinkId(draft.drinkId);
+      setDrinkReviewRating(draft.rating || 0);
+      setDrinkReviewComment(draft.comment || '');
+      setDrinkReviewDescriptors(draft.descriptors || []);
+      setDrinkReviewPhoto(draft.photo || null);
     }
   }, [decodedId, user]);
 
