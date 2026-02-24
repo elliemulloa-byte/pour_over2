@@ -160,6 +160,18 @@ export async function initDb() {
     _db.exec('CREATE INDEX IF NOT EXISTS idx_place_drinks_place ON place_drinks(place_id)');
     _db.exec('CREATE INDEX IF NOT EXISTS idx_place_drink_reviews_drink ON place_drink_reviews(place_drink_id)');
   } catch (_) { /* already exists */ }
+  try {
+    _db.exec('ALTER TABLE place_drink_reviews ADD COLUMN descriptors TEXT');
+  } catch (_) { /* column already exists */ }
+  try {
+    _db.exec('ALTER TABLE place_reviews ADD COLUMN photo TEXT');
+  } catch (_) { /* column already exists */ }
+  try {
+    _db.exec('ALTER TABLE place_drink_reviews ADD COLUMN photo TEXT');
+  } catch (_) { /* column already exists */ }
+  try {
+    _db.exec('ALTER TABLE users ADD COLUMN avatar TEXT');
+  } catch (_) { /* column already exists */ }
   return _db;
 }
 

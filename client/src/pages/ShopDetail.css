@@ -178,9 +178,16 @@
   gap: 0.5rem;
 }
 
+.star-rating,
 .shop-review-stars {
   display: flex;
   gap: 0.2rem;
+  align-items: center;
+}
+
+.star-rating .star-btn {
+  padding: 0.15rem;
+  transition: color 0.1s ease;
 }
 
 .star-btn {
@@ -191,8 +198,153 @@
   cursor: pointer;
 }
 
-.star-btn.filled {
+.star-btn.filled,
+.star-rating .star-btn.filled {
   color: var(--star);
+}
+
+.shop-review-descriptors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.descriptor-btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.descriptor-btn:hover {
+  background: var(--surface-hover);
+}
+
+.descriptor-btn.selected {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.shop-drink-reviews-preview {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.shop-drink-review-preview {
+  margin-bottom: 0.25rem;
+}
+
+.review-descriptors {
+  font-style: italic;
+}
+
+.review-preview-text {
+  color: var(--text);
+}
+
+.login-reminder {
+  padding: 0.6rem 0.8rem;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+}
+
+.login-reminder a,
+.login-reminder-link {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  cursor: pointer;
+}
+
+.login-reminder-link:hover {
+  text-decoration: underline;
+}
+
+.review-photo-input {
+  position: absolute;
+  left: -9999px;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.add-photo-btn {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.85rem;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.add-photo-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.add-photo-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.review-photo-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.review-photo-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.review-photo-preview img {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: var(--radius);
+}
+
+.remove-photo-btn {
+  padding: 0.2rem 0.4rem;
+  font-size: 0.8rem;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.review-photo-display {
+  display: block;
+  max-width: 200px;
+  max-height: 150px;
+  object-fit: cover;
+  border-radius: var(--radius);
+  margin-top: 0.5rem;
+}
+
+.review-photo-display--sm {
+  max-width: 60px;
+  max-height: 60px;
+  margin-top: 0.25rem;
 }
 
 .shop-review-comment {

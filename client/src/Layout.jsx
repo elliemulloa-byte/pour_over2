@@ -1,6 +1,7 @@
 import { Link, Outlet } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { BeanVerdictLogo } from './BeanVerdictLogo';
+import { Avatar } from './Avatar';
 import './Layout.css';
 
 export function Layout() {
@@ -17,8 +18,10 @@ export function Layout() {
           <nav className="site-nav" aria-label="Main">
             {user ? (
               <>
-                <Link to="/profile" className="site-nav-link">Profile</Link>
-                <span className="site-nav-user">{user.displayName || user.email}</span>
+                <Link to="/profile" className="site-nav-link site-nav-profile">
+                  <Avatar avatar={user.avatar} size={28} />
+                  <span>{user.displayName || user.email}</span>
+                </Link>
               </>
             ) : (
               <>

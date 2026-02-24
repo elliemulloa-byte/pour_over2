@@ -1,13 +1,43 @@
-import { useState, useEffect } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { getPlace, addPlaceReview, addPlaceDrink, addPlaceDrinkReview } from '../api';
+import { saveReviewDraft, loadReviewDraft } from '../reviewDraft';
 import { useAuth } from '../AuthContext';
 import { getDrinkPhotoUrl } from '../drinkPhotos';
+import { StarRating } from '../StarRating';
 import './ShopDetail.css';
+
+const REVIEW_DESCRIPTORS = ['bitter', 'sweet', 'smooth', 'strong', 'creamy', 'bold', 'mild', 'roasty'];
+const MAX_PHOTO_SIZE = 500 * 1024; // 500KB
+
+function AddPhotoButton({ onPhotoSelected }) {
+  const inputRef = useRef(null);
+  function handleChange(e) {
+    const file = e.target?.files?.[0];
+    if (!file) return;
+    if (file.size > MAX_PHOTO_SIZE) {
+      alert('Photo must be under 500KB. Please choose a smaller image.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => onPhotoSelected(reader.result);
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }
+  return (
+    <>
+      <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleChange} className="review-photo-input" />
+      <button type="button" className="add-photo-btn" onClick={() => inputRef.current?.click()}>
+        Add photo
+      </button>
+    </>
+  );
+}
 
 export function PlaceDetail() {
   const { placeId } = useParams();
   const { state: locationState } = useLocation();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const decodedId = placeId ? decodeURIComponent(placeId) : '';
   const searchResult = locationState?.searchResult;
@@ -17,6 +47,8 @@ export function PlaceDetail() {
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState('');
+  const [reviewPhoto, setReviewPhoto] = useState(null);
+  const [reviewInteracted, setReviewInteracted] = useState(false);
   const [submittingReview, setSubmittingReview] = useState(false);
   const [addReviewError, setAddReviewError] = useState('');
   const [showAddDrink, setShowAddDrink] = useState(false);
@@ -26,12 +58,34 @@ export function PlaceDetail() {
   const [reviewingDrinkId, setReviewingDrinkId] = useState(null);
   const [drinkReviewRating, setDrinkReviewRating] = useState(0);
   const [drinkReviewComment, setDrinkReviewComment] = useState('');
+  const [drinkReviewDescriptors, setDrinkReviewDescriptors] = useState([]);
+  const [drinkReviewPhoto, setDrinkReviewPhoto] = useState(null);
+  const [drinkReviewInteracted, setDrinkReviewInteracted] = useState(false);
   const [submittingDrinkReview, setSubmittingDrinkReview] = useState(false);
 
   function refresh() {
     if (!decodedId) return;
     getPlace(decodedId).then((data) => setPlace(data.place)).catch(() => setPlace(null));
   }
+
+  useEffect(() => {
+    if (!placeId || !decodedId) return;
+    const draft = loadReviewDraft(decodedId);
+    if (draft && user) {
+      if (draft.type === 'place') {
+        setShowReviewForm(true);
+        setReviewRating(draft.rating || 0);
+        setReviewComment(draft.comment || '');
+        setReviewPhoto(draft.photo || null);
+      } else if (draft.type === 'drink' && draft.drinkId) {
+        setReviewingDrinkId(draft.drinkId);
+        setDrinkReviewRating(draft.rating || 0);
+        setDrinkReviewComment(draft.comment || '');
+        setDrinkReviewDescriptors(draft.descriptors || []);
+        setDrinkReviewPhoto(draft.photo || null);
+      }
+    }
+  }, [decodedId, user]);
 
   useEffect(() => {
     if (!placeId) return;
@@ -64,15 +118,19 @@ export function PlaceDetail() {
 
   async function handleSubmitPlaceReview(e) {
     e?.preventDefault();
+    if (!user) return;
     if (reviewRating < 1 || reviewRating > 5) return;
     setSubmittingReview(true);
     setAddReviewError('');
     try {
-      await addPlaceReview(decodedId, reviewRating, reviewComment.trim() || undefined);
+      await addPlaceReview(decodedId, reviewRating, reviewComment.trim() || undefined, reviewPhoto);
       refresh();
       setShowReviewForm(false);
       setReviewRating(0);
       setReviewComment('');
+      setReviewPhoto(null);
+      setReviewInteracted(false);
+      try { sessionStorage.removeItem('beanverdict_review_draft'); } catch (_) {}
     } catch (err) {
       setAddReviewError(err.message || 'Failed to add review');
     } finally {
@@ -86,10 +144,11 @@ export function PlaceDetail() {
     setAddingDrink(true);
     setAddDrinkError('');
     try {
-      await addPlaceDrink(decodedId, newDrinkName.trim());
-      refresh();
+      const { drink } = await addPlaceDrink(decodedId, newDrinkName.trim());
+      await refresh();
       setNewDrinkName('');
       setShowAddDrink(false);
+      if (drink?.id && user) setReviewingDrinkId(drink.id);
     } catch (err) {
       setAddDrinkError(err.message || 'Failed to add drink');
     } finally {
@@ -98,14 +157,19 @@ export function PlaceDetail() {
   }
 
   async function handleSubmitDrinkReview(drinkId) {
+    if (!user) return;
     if (drinkReviewRating < 1 || drinkReviewRating > 5) return;
     setSubmittingDrinkReview(true);
     try {
-      await addPlaceDrinkReview(decodedId, drinkId, drinkReviewRating, drinkReviewComment.trim() || undefined);
+      await addPlaceDrinkReview(decodedId, drinkId, drinkReviewRating, drinkReviewComment.trim() || undefined, drinkReviewDescriptors, drinkReviewPhoto);
       refresh();
       setReviewingDrinkId(null);
       setDrinkReviewRating(0);
       setDrinkReviewComment('');
+      setDrinkReviewDescriptors([]);
+      setDrinkReviewPhoto(null);
+      setDrinkReviewInteracted(false);
+      try { sessionStorage.removeItem('beanverdict_review_draft'); } catch (_) {}
     } catch (err) {
       setAddDrinkError(err.message);
     } finally {
@@ -120,8 +184,9 @@ export function PlaceDetail() {
     ? `https://www.google.com/maps/place/?q=place_id:${place.placeId}`
     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.address || place.name)}`;
 
-  const popularDrinks = (place.placeDrinks || []).filter((d) => !d.isSeasonal);
-  const specialtyDrinks = (place.placeDrinks || []).filter((d) => d.isSeasonal);
+  const allDrinks = (place.placeDrinks || [])
+    .sort((a, b) => (b.avgRating ?? 0) - (a.avgRating ?? 0) || (b.reviewCount ?? 0) - (a.reviewCount ?? 0));
+  const topDrinks = allDrinks.slice(0, 5);
 
   const heroPhoto = place.photos?.[0] || 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800&h=450&fit=crop';
   const reviewSnippet = (place.reviews?.[0] || place.userReviews?.[0]);
@@ -186,54 +251,39 @@ export function PlaceDetail() {
         </section>
       )}
 
-      {/* Menu / drink ratings */}
+      {/* Menu / drink ratings - overall in header; show only top few drinks here */}
       <section className="shop-drinks" aria-label="Menu">
         <h2 className="shop-section-title">Menu & drink ratings</h2>
-        {popularDrinks.length > 0 && (
+        {topDrinks.length > 0 ? (
           <>
-            <h3 className="shop-drinks-subtitle">Popular</h3>
+            <h3 className="shop-drinks-subtitle">Top rated</h3>
             <ul className="shop-drinks-list shop-drinks-list--with-photos">
-              {popularDrinks.map((d) => (
+              {topDrinks.map((d) => (
                 <DrinkCard
                   key={d.id}
                   drink={d}
                   user={user}
+                  placeId={decodedId}
+                  navigate={navigate}
                   reviewingDrinkId={reviewingDrinkId}
                   setReviewingDrinkId={setReviewingDrinkId}
                   drinkReviewRating={drinkReviewRating}
                   setDrinkReviewRating={setDrinkReviewRating}
                   drinkReviewComment={drinkReviewComment}
                   setDrinkReviewComment={setDrinkReviewComment}
+                  drinkReviewDescriptors={drinkReviewDescriptors}
+                  setDrinkReviewDescriptors={setDrinkReviewDescriptors}
+                  drinkReviewPhoto={drinkReviewPhoto}
+                  setDrinkReviewPhoto={setDrinkReviewPhoto}
+                  drinkReviewInteracted={drinkReviewInteracted}
+                  setDrinkReviewInteracted={setDrinkReviewInteracted}
                   submittingDrinkReview={submittingDrinkReview}
                   onSubmitReview={handleSubmitDrinkReview}
                 />
               ))}
             </ul>
           </>
-        )}
-        {specialtyDrinks.length > 0 && (
-          <>
-            <h3 className="shop-drinks-subtitle">Specialty & seasonal</h3>
-            <ul className="shop-drinks-list shop-drinks-list--with-photos">
-              {specialtyDrinks.map((d) => (
-                <DrinkCard
-                  key={d.id}
-                  drink={d}
-                  user={user}
-                  reviewingDrinkId={reviewingDrinkId}
-                  setReviewingDrinkId={setReviewingDrinkId}
-                  drinkReviewRating={drinkReviewRating}
-                  setDrinkReviewRating={setDrinkReviewRating}
-                  drinkReviewComment={drinkReviewComment}
-                  setDrinkReviewComment={setDrinkReviewComment}
-                  submittingDrinkReview={submittingDrinkReview}
-                  onSubmitReview={handleSubmitDrinkReview}
-                />
-              ))}
-            </ul>
-          </>
-        )}
-        {(popularDrinks.length === 0 && specialtyDrinks.length === 0) && (
+        ) : (
           <p className="shop-no-drinks">No drinks rated yet. Add one below!</p>
         )}
         {user && (
@@ -247,7 +297,7 @@ export function PlaceDetail() {
                 {addDrinkError && <p className="shop-error">{addDrinkError}</p>}
                 <input
                   type="text"
-                  placeholder="e.g. Peppermint Mocha, Latte"
+                  placeholder="e.g. Latte, Gingerbread Spice Frappuccino"
                   value={newDrinkName}
                   onChange={(e) => setNewDrinkName(e.target.value)}
                   className="shop-add-drink-input"
@@ -311,6 +361,7 @@ export function PlaceDetail() {
               <li key={r.id} className="shop-review-card">
                 <span className="stars">{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</span>
                 <span className="shop-review-author">{r.author}</span>
+                {r.photo && <img src={r.photo} alt="" className="review-photo-display" />}
                 {r.comment && <p className="shop-review-text">{r.comment}</p>}
               </li>
             ))}
@@ -319,35 +370,60 @@ export function PlaceDetail() {
       )}
 
       {/* Add place review */}
-      {user && (
-        <section className="shop-add-review" aria-label="Add your review">
-          <h2 className="shop-section-title">Add your review</h2>
-          {!showReviewForm ? (
-            <button type="button" className="shop-add-review-btn" onClick={() => setShowReviewForm(true)}>
-              Write a review
-            </button>
-          ) : (
-            <form className="shop-review-form" onSubmit={handleSubmitPlaceReview}>
-              {addReviewError && <p className="shop-error">{addReviewError}</p>}
-              <div className="shop-review-stars">
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <button key={n} type="button" className={`star-btn ${reviewRating >= n ? 'filled' : ''}`} onClick={() => setReviewRating(n)}>★</button>
-                ))}
+      <section className="shop-add-review" aria-label="Add your review">
+        <h2 className="shop-section-title">Add your review</h2>
+        {!showReviewForm ? (
+          <button type="button" className="shop-add-review-btn" onClick={() => setShowReviewForm(true)}>
+            Write a review
+          </button>
+        ) : (
+          <form className="shop-review-form" onSubmit={handleSubmitPlaceReview}>
+            {!user && reviewInteracted && (
+              <div className="login-reminder">
+                <button
+                  type="button"
+                  className="login-reminder-link"
+                  onClick={() => {
+                    saveReviewDraft(decodedId, { type: 'place', rating: reviewRating, comment: reviewComment, photo: reviewPhoto });
+                    navigate(`/login?redirect=${encodeURIComponent(`/place/${encodeURIComponent(placeId)}`)}`);
+                  }}
+                >
+                  Sign in
+                </button>
+                {' '}to leave a review.
               </div>
-              <input type="text" placeholder="Comment (optional)" value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} className="shop-review-comment" />
-              <button type="submit" className="shop-review-submit" disabled={submittingReview || reviewRating < 1}>Save</button>
-              <button type="button" className="shop-add-drink-cancel" onClick={() => { setShowReviewForm(false); setReviewRating(0); setReviewComment(''); setAddReviewError(''); }}>Cancel</button>
-            </form>
-          )}
-        </section>
-      )}
+            )}
+            {addReviewError && <p className="shop-error">{addReviewError}</p>}
+            <StarRating value={reviewRating} onChange={(n) => { setReviewRating(n); if (!user) setReviewInteracted(true); }} />
+            <input type="text" placeholder="Comment (optional)" value={reviewComment} onChange={(e) => { setReviewComment(e.target.value); if (!user && e.target.value) setReviewInteracted(true); }} className="shop-review-comment" />
+            <div className="review-photo-row">
+              <AddPhotoButton onPhotoSelected={setReviewPhoto} />
+              {reviewPhoto && (
+                <div className="review-photo-preview">
+                  <img src={reviewPhoto} alt="Your photo" />
+                  <button type="button" className="remove-photo-btn" onClick={() => setReviewPhoto(null)}>Remove</button>
+                </div>
+              )}
+            </div>
+            <button type="submit" className="shop-review-submit" disabled={submittingReview || reviewRating < 1 || !user}>Save</button>
+            <button type="button" className="shop-add-drink-cancel" onClick={() => { setShowReviewForm(false); setReviewRating(0); setReviewComment(''); setReviewPhoto(null); setReviewInteracted(false); setAddReviewError(''); }}>Cancel</button>
+          </form>
+        )}
+      </section>
     </div>
   );
 }
 
-function DrinkCard({ drink, user, reviewingDrinkId, setReviewingDrinkId, drinkReviewRating, setDrinkReviewRating, drinkReviewComment, setDrinkReviewComment, submittingDrinkReview, onSubmitReview }) {
+function DrinkCard({ drink, user, placeId, navigate, reviewingDrinkId, setReviewingDrinkId, drinkReviewRating, setDrinkReviewRating, drinkReviewComment, setDrinkReviewComment, drinkReviewDescriptors, setDrinkReviewDescriptors, drinkReviewPhoto, setDrinkReviewPhoto, drinkReviewInteracted, setDrinkReviewInteracted, submittingDrinkReview, onSubmitReview }) {
   const isReviewing = reviewingDrinkId === drink.id;
   const photoUrl = getDrinkPhotoUrl(drink.drinkType, drink.displayName);
+
+  function toggleDescriptor(tag) {
+    setDrinkReviewDescriptors((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  }
+
   return (
     <li className="shop-drink-card shop-drink-card--with-photo">
       <img src={photoUrl} alt="" className="shop-drink-photo" />
@@ -360,24 +436,68 @@ function DrinkCard({ drink, user, reviewingDrinkId, setReviewingDrinkId, drinkRe
             <span className="no-reviews">No reviews yet</span>
           )}
         </div>
-        {user && (
-          <button
-            type="button"
-            className="shop-add-review-btn"
-            onClick={() => setReviewingDrinkId(isReviewing ? null : drink.id)}
-          >
-            {isReviewing ? 'Cancel' : 'Rate this drink'}
-          </button>
+        {drink.reviews && drink.reviews.length > 0 && (
+          <div className="shop-drink-reviews-preview">
+            {drink.reviews.slice(0, 2).map((r, i) => (
+              <div key={i} className="shop-drink-review-preview">
+                <StarRating value={r.rating} readonly size="1rem" />
+                {r.descriptors?.length > 0 && (
+                  <span className="review-descriptors"> {r.descriptors.join(', ')}</span>
+                )}
+                {r.photo && <img src={r.photo} alt="" className="review-photo-display review-photo-display--sm" />}
+                {r.comment && <span className="review-preview-text"> – {r.comment.slice(0, 60)}{r.comment.length > 60 ? '…' : ''}</span>}
+              </div>
+            ))}
+          </div>
         )}
+        <button
+          type="button"
+          className="shop-add-review-btn"
+          onClick={() => { setReviewingDrinkId(isReviewing ? null : drink.id); if (isReviewing) setDrinkReviewInteracted(false); }}
+        >
+          {isReviewing ? 'Cancel' : 'Rate this drink'}
+        </button>
         {isReviewing && (
           <form className="shop-review-form" onSubmit={(e) => { e.preventDefault(); onSubmitReview(drink.id); }}>
-            <div className="shop-review-stars">
-              {[1, 2, 3, 4, 5].map((n) => (
-                <button key={n} type="button" className={`star-btn ${drinkReviewRating >= n ? 'filled' : ''}`} onClick={() => setDrinkReviewRating(n)}>★</button>
+            {!user && drinkReviewInteracted && (
+              <div className="login-reminder">
+                <button
+                  type="button"
+                  className="login-reminder-link"
+                  onClick={() => {
+                    saveReviewDraft(placeId, { type: 'drink', drinkId: drink.id, rating: drinkReviewRating, comment: drinkReviewComment, descriptors: drinkReviewDescriptors, photo: drinkReviewPhoto });
+                    navigate(`/login?redirect=${encodeURIComponent(`/place/${encodeURIComponent(placeId || '')}`)}`);
+                  }}
+                >
+                  Sign in
+                </button>
+                {' '}to leave a review.
+              </div>
+            )}
+            <StarRating value={drinkReviewRating} onChange={(n) => { setDrinkReviewRating(n); if (!user) setDrinkReviewInteracted(true); }} />
+            <div className="shop-review-descriptors">
+              {REVIEW_DESCRIPTORS.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  className={`descriptor-btn ${drinkReviewDescriptors.includes(tag) ? 'selected' : ''}`}
+                  onClick={() => { toggleDescriptor(tag); if (!user) setDrinkReviewInteracted(true); }}
+                >
+                  {tag}
+                </button>
               ))}
             </div>
-            <input type="text" placeholder="Comment (optional)" value={drinkReviewComment} onChange={(e) => setDrinkReviewComment(e.target.value)} className="shop-review-comment" />
-            <button type="submit" className="shop-review-submit" disabled={submittingDrinkReview || drinkReviewRating < 1}>Save</button>
+            <input type="text" placeholder="Comment (optional)" value={drinkReviewComment} onChange={(e) => { setDrinkReviewComment(e.target.value); if (!user && e.target.value) setDrinkReviewInteracted(true); }} className="shop-review-comment" maxLength={500} />
+            <div className="review-photo-row">
+              <AddPhotoButton onPhotoSelected={setDrinkReviewPhoto} />
+              {drinkReviewPhoto && (
+                <div className="review-photo-preview">
+                  <img src={drinkReviewPhoto} alt="Your photo" />
+                  <button type="button" className="remove-photo-btn" onClick={() => setDrinkReviewPhoto(null)}>Remove</button>
+                </div>
+              )}
+            </div>
+            <button type="submit" className="shop-review-submit" disabled={submittingDrinkReview || drinkReviewRating < 1 || !user}>Save</button>
           </form>
         )}
       </div>

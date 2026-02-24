@@ -59,6 +59,21 @@
   flex-wrap: wrap;
 }
 
+.site-nav-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.site-nav-profile .avatar {
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+
+.site-nav-profile .avatar--img {
+  object-fit: cover;
+}
+
 .site-nav-link {
   padding: 0.5rem 0.85rem;
   border-radius: var(--radius);

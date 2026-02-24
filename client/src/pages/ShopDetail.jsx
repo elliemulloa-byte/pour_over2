@@ -73,8 +73,9 @@ export function ShopDetail() {
   if (!shop) return <div className="shop-detail"><p className="shop-error">Shop not found.</p></div>;
 
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(shop.address || shop.name)}`;
-  const popularDrinks = drinks.filter((d) => !d.isSeasonal);
-  const specialtyDrinks = drinks.filter((d) => d.isSeasonal);
+  const topDrinks = [...drinks]
+    .sort((a, b) => (b.avgRating ?? 0) - (a.avgRating ?? 0) || (b.reviewCount ?? 0) - (a.reviewCount ?? 0))
+    .slice(0, 5);
 
   return (
     <div className="shop-detail">
@@ -95,11 +96,11 @@ export function ShopDetail() {
 
       <section className="shop-drinks" aria-label="Menu">
         <h2 className="shop-section-title">Menu & drink ratings</h2>
-        {popularDrinks.length > 0 && (
+        {topDrinks.length > 0 ? (
           <>
-            <h3 className="shop-drinks-subtitle">Popular</h3>
+            <h3 className="shop-drinks-subtitle">Top rated</h3>
             <ul className="shop-drinks-list shop-drinks-list--with-photos">
-              {popularDrinks.map((d) => (
+              {topDrinks.map((d) => (
                 <ShopDrinkCard
                   key={d.drinkId}
                   drink={d}
@@ -116,28 +117,8 @@ export function ShopDetail() {
               ))}
             </ul>
           </>
-        )}
-        {specialtyDrinks.length > 0 && (
-          <>
-            <h3 className="shop-drinks-subtitle">Specialty & seasonal</h3>
-            <ul className="shop-drinks-list shop-drinks-list--with-photos">
-              {specialtyDrinks.map((d) => (
-                <ShopDrinkCard
-                  key={d.drinkId}
-                  drink={d}
-                  user={user}
-                  reviewingDrink={reviewingDrink}
-                  setReviewingDrink={setReviewingDrink}
-                  reviewRating={reviewRating}
-                  setReviewRating={setReviewRating}
-                  reviewComment={reviewComment}
-                  setReviewComment={setReviewComment}
-                  submittingReview={submittingReview}
-                  onSubmitReview={handleSubmitReview}
-                />
-              ))}
-            </ul>
-          </>
+        ) : (
+        <p className="shop-no-drinks">No drinks rated yet.</p>
         )}
         {user && (
           <div className="shop-add-drink">

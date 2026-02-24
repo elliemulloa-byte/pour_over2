@@ -23,18 +23,72 @@
 }
 
 .profile-avatar {
-  width: 4rem;
-  height: 4rem;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--terracotta));
-  color: var(--surface);
-  font-family: var(--font-heading);
-  font-size: 1.75rem;
-  font-weight: 600;
+  object-fit: cover;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto 1rem;
+  overflow: hidden;
+}
+
+.profile-avatar.avatar--emoji {
+  background: linear-gradient(135deg, var(--accent-soft), var(--surface));
+}
+
+.profile-avatar.avatar--img {
+  border: 2px solid var(--border);
+}
+
+.profile-avatar-picker {
+  margin: 1rem 0;
+}
+
+.profile-avatar-label {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin: 0 0 0.5rem;
+}
+
+.profile-avatar-options {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.profile-avatar-opt {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.profile-avatar-opt:hover {
+  border-color: var(--accent);
+}
+
+.profile-avatar-opt.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.profile-avatar-upload {
+  cursor: pointer;
+}
+
+.profile-avatar-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  display: block;
+  margin-top: 0.35rem;
 }
 
 .profile-name {

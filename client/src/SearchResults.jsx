@@ -24,8 +24,8 @@ export function SearchResults({ shops, drinks, loading, query, hasLocation, user
                 ? `https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(s.placeId)}`
                 : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.address || s.shopName)}`;
               return (
-              <li key={key}>
-                <Link to={linkTo} state={searchResult} className="result-card result-card--shop">
+              <li key={key} className="result-card-wrap">
+                <Link to={linkTo} state={{ searchResult }} className="result-card result-card--shop">
                   <div className="result-card-main">
                     <div className="result-shop-name">{s.shopName}</div>
                     <div className="result-meta">
@@ -41,16 +41,16 @@ export function SearchResults({ shops, drinks, loading, query, hasLocation, user
                       )}
                     </div>
                   </div>
-                  <a
-                    href={mapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="result-map-link"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    Directions
-                  </a>
                 </Link>
+                <a
+                  href={mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="result-map-link"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Directions
+                </a>
               </li>
             );
             })}
@@ -63,7 +63,7 @@ export function SearchResults({ shops, drinks, loading, query, hasLocation, user
           <h2 className="results-section-title">Drinks</h2>
           <ul className="results-list results-list--yelp">
             {drinks.map((d) => (
-              <li key={`${d.shopId}-${d.drinkId}`}>
+              <li key={`${d.shopId}-${d.drinkId}`} className="result-card-wrap">
                 <Link to={`/shop/${d.shopId}`} className="result-card result-card--drink">
                   <div className="result-drink">{d.displayName}</div>
                   <div className="result-shop">{d.shopName}</div>
@@ -79,16 +79,16 @@ export function SearchResults({ shops, drinks, loading, query, hasLocation, user
                       <span className="result-distance">{(d.distanceMiles ?? (d.distanceKm * 0.621371).toFixed(1))} mi away</span>
                     )}
                   </div>
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(d.shopAddress || d.shopName)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="result-map-link"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    Directions
-                  </a>
                 </Link>
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(d.shopAddress || d.shopName)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="result-map-link"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Directions
+                </a>
               </li>
             ))}
           </ul>

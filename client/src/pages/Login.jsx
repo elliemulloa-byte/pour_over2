@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 import './Auth.css';
 
@@ -10,6 +10,8 @@ export function Login() {
   const [submitting, setSubmitting] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirect = searchParams.get('redirect') || '/';
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -17,7 +19,7 @@ export function Login() {
     setSubmitting(true);
     try {
       await login(email.trim(), password);
-      navigate('/', { replace: true });
+      navigate(redirect, { replace: true });
     } catch (err) {
       setError(err.message || 'Login failed');
     } finally {

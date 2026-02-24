@@ -23,9 +23,9 @@ function createSession(userId) {
 function getSession(sessionId) {
   if (!sessionId) return null;
   const row = db.prepare(
-    'SELECT s.user_id, u.email, u.display_name FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ? AND s.expires_at > datetime("now")'
+    'SELECT s.user_id, u.email, u.display_name, COALESCE(NULLIF(u.avatar, \'bean\'), \'cup\') AS avatar FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ? AND s.expires_at > datetime("now")'
   ).all(sessionId)[0];
-  return row ? { userId: row.user_id, email: row.email, displayName: row.display_name } : null;
+  return row ? { userId: row.user_id, email: row.email, displayName: row.display_name, avatar: row.avatar || 'cup' } : null;
 }
 
 function destroySession(sessionId) {
@@ -58,8 +58,8 @@ export function authRoutes(app) {
     }
     const hash = hashPassword(password);
     const name = typeof displayName === 'string' ? displayName.trim() || null : null;
-    db.prepare('INSERT INTO users (email, password_hash, display_name) VALUES (?, ?, ?)').run(emailTrim, hash, name);
-    const userRow = db.prepare('SELECT id, email, display_name, created_at FROM users WHERE id = last_insert_rowid()').all()[0];
+    db.prepare('INSERT INTO users (email, password_hash, display_name, avatar) VALUES (?, ?, ?, ?)').run(emailTrim, hash, name, 'cup');
+    const userRow = db.prepare('SELECT id, email, display_name, COALESCE(NULLIF(avatar, \'bean\'), \'cup\') AS avatar, created_at FROM users WHERE id = last_insert_rowid()').all()[0];
     const { id } = createSession(userRow.id);
     res.cookie(SESSION_COOKIE, id, {
       httpOnly: true,
@@ -72,6 +72,7 @@ export function authRoutes(app) {
         id: userRow.id,
         email: userRow.email,
         displayName: userRow.display_name,
+        avatar: userRow.avatar || 'cup',
         createdAt: userRow.created_at,
       },
     });
@@ -83,7 +84,7 @@ export function authRoutes(app) {
       return res.status(400).json({ error: 'Email and password required' });
     }
     const emailTrim = email.trim().toLowerCase();
-    const user = db.prepare('SELECT id, email, display_name, password_hash FROM users WHERE email = ?').all(emailTrim)[0];
+    const user = db.prepare('SELECT id, email, display_name, COALESCE(NULLIF(avatar, \'bean\'), \'cup\') AS avatar, password_hash FROM users WHERE email = ?').all(emailTrim)[0];
     if (!user || !verifyPassword(password, user.password_hash)) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
@@ -99,6 +100,7 @@ export function authRoutes(app) {
         id: user.id,
         email: user.email,
         displayName: user.display_name,
+        avatar: user.avatar || 'cup',
       },
     });
   });
@@ -120,8 +122,26 @@ export function authRoutes(app) {
         id: session.userId,
         email: session.email,
         displayName: session.displayName,
+        avatar: session.avatar || 'cup',
       },
     });
+  });
+
+  app.patch('/api/auth/me', requireAuth, (req, res) => {
+    const { avatar } = req.body || {};
+    const valid = ['cup', 'scroll'];
+    const isCustom = typeof avatar === 'string' && avatar.startsWith('data:image/');
+    if (!avatar || (!valid.includes(avatar) && !isCustom)) {
+      return res.status(400).json({ error: 'Avatar must be cup, scroll, or a custom image data URL' });
+    }
+    const value = isCustom ? (avatar.length < 200000 ? avatar : null) : avatar;
+    if (!value) return res.status(400).json({ error: 'Custom image too large (max ~200KB)' });
+    try {
+      db.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(value, req.session.userId);
+      res.json({ avatar: value });
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to update avatar' });
+    }
   });
 }
 

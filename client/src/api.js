@@ -88,11 +88,11 @@ export async function addPlaceDrink(placeId, displayName, isSeasonal) {
   return data;
 }
 
-export async function addPlaceDrinkReview(placeId, drinkId, rating, comment) {
+export async function addPlaceDrinkReview(placeId, drinkId, rating, comment, descriptors, photo) {
   const res = await fetch(`${API}/places/${encodeURIComponent(placeId)}/drinks/${drinkId}/reviews`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ rating, comment: comment || undefined }),
+    body: JSON.stringify({ rating, comment: comment || undefined, descriptors: descriptors || [], photo: photo || undefined }),
     credentials: 'include',
   });
   const data = await res.json();
@@ -100,11 +100,11 @@ export async function addPlaceDrinkReview(placeId, drinkId, rating, comment) {
   return data;
 }
 
-export async function addPlaceReview(placeId, rating, comment) {
+export async function addPlaceReview(placeId, rating, comment, photo) {
   const res = await fetch(`${API}/places/${encodeURIComponent(placeId)}/reviews`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ rating, comment: comment || undefined }),
+    body: JSON.stringify({ rating, comment: comment || undefined, photo: photo || undefined }),
     credentials: 'include',
   });
   const data = await res.json();
@@ -177,6 +177,18 @@ export async function signup(email, password, displayName) {
 
 export async function logout() {
   await fetch(`${API}/auth/logout`, { method: 'POST', credentials: 'include' });
+}
+
+export async function updateAvatar(avatar) {
+  const res = await fetch(`${API}/auth/me`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ avatar }),
+    credentials: 'include',
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to update avatar');
+  return data;
 }
 
 export async function getMyReviews() {

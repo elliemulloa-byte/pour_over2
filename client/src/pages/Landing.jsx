@@ -20,7 +20,7 @@ function parseSearchInput(input) {
   return { query: parts.join(' '), location };
 }
 
-// Year-round drinks – photos from Unsplash (real, unique per drink)
+// Year-round drinks – fixed URLs, same for everyone (no user-specific variation)
 const RECOMMENDED = [
   { label: 'Latte', query: 'latte' },
   { label: 'Cold Brew', query: 'cold brew' },
@@ -153,7 +153,7 @@ export function Landing() {
               className="recommended-card"
               onClick={() => handleRecommendedClick(item)}
             >
-              <img src={item.img} alt="" className="recommended-img" />
+              <img src={item.img} alt="" className="recommended-img" referrerPolicy="no-referrer" crossOrigin="anonymous" />
               <span className="recommended-label">{item.label}</span>
             </button>
           ))}

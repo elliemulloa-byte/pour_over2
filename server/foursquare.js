@@ -13,17 +13,21 @@ function authHeaders() {
   };
 }
 
+// Foursquare category 13032 = Coffee Shop (ensures actual coffee places)
+const COFFEE_CATEGORY = '13032';
+
 export async function fetchPlacesFromFoursquare(query, lat, lng) {
   if (!API_KEY || !lat || !lng) return [];
   try {
     const q = query.trim().toLowerCase();
     const isDrink = /\b(latte|mocha|cappuccino|espresso|americano|cold brew|pour over|chai|matcha|drip|nitro|oat)\b/.test(q);
-    const searchQuery = isDrink ? `${query.trim()} coffee shop` : `${query.trim()} cafe`;
+    const searchQuery = isDrink ? `${query.trim()} coffee` : `${query.trim()} coffee`;
     const params = new URLSearchParams({
       query: searchQuery,
       ll: `${lat},${lng}`,
-      radius: '50000',
-      limit: '20',
+      radius: '8000',
+      limit: '30',
+      categories: COFFEE_CATEGORY,
     });
     const res = await fetch(`https://api.foursquare.com/v3/places/search?${params}`, {
       headers: authHeaders(),
