@@ -5,6 +5,8 @@ import { useAuth } from '../AuthContext';
 import { getDrinkPhotoUrl } from '../drinkPhotos';
 import './ShopDetail.css';
 
+const REVIEW_DESCRIPTORS = ['bitter', 'sweet', 'smooth', 'strong', 'creamy', 'bold', 'mild', 'roasty'];
+
 export function ShopDetail() {
   const { shopId } = useParams();
   const { user } = useAuth();
@@ -19,7 +21,10 @@ export function ShopDetail() {
   const [reviewingDrink, setReviewingDrink] = useState(null);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState('');
+  const [reviewDescriptors, setReviewDescriptors] = useState([]);
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [drinkSearchFilter, setDrinkSearchFilter] = useState('');
+  const [showAllDrinks, setShowAllDrinks] = useState(false);
 
   useEffect(() => {
     if (!shopId) return;
@@ -55,13 +60,14 @@ export function ShopDetail() {
     if (reviewRating < 1 || reviewRating > 5) return;
     setSubmittingReview(true);
     try {
-      await addReview(drinkId, reviewRating, reviewComment.trim() || undefined);
+      await addReview(drinkId, reviewRating, reviewComment.trim() || undefined, reviewDescriptors);
       const data = await getShop(shopId);
       setDrinks(data.drinks || []);
       setReviews(data.reviews || []);
       setReviewingDrink(null);
       setReviewRating(0);
       setReviewComment('');
+      setReviewDescriptors([]);
     } catch (err) {
       setAddDrinkError(err.message);
     } finally {
@@ -73,9 +79,19 @@ export function ShopDetail() {
   if (!shop) return <div className="shop-detail"><p className="shop-error">Shop not found.</p></div>;
 
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(shop.address || shop.name)}`;
-  const topDrinks = [...drinks]
-    .sort((a, b) => (b.avgRating ?? 0) - (a.avgRating ?? 0) || (b.reviewCount ?? 0) - (a.reviewCount ?? 0))
-    .slice(0, 5);
+  const allDrinks = [...drinks]
+    .sort((a, b) => {
+      const seasonal = (b.isSeasonal ? 1 : 0) - (a.isSeasonal ? 1 : 0);
+      if (seasonal !== 0) return seasonal;
+      return (b.reviewCount ?? 0) - (a.reviewCount ?? 0) || (b.avgRating ?? 0) - (a.avgRating ?? 0);
+    });
+  const drinkFilter = (drinkSearchFilter || '').trim().toLowerCase();
+  const filteredDrinks = drinkFilter
+    ? allDrinks.filter((d) => (d.displayName || '').toLowerCase().includes(drinkFilter) || (d.drinkType || '').toLowerCase().includes(drinkFilter))
+    : allDrinks;
+  const TOP_COUNT = 6;
+  const topDrinks = filteredDrinks.slice(0, TOP_COUNT);
+  const restDrinks = filteredDrinks.slice(TOP_COUNT);
 
   return (
     <div className="shop-detail">
@@ -96,10 +112,21 @@ export function ShopDetail() {
 
       <section className="shop-drinks" aria-label="Menu">
         <h2 className="shop-section-title">Menu & drink ratings</h2>
-        {topDrinks.length > 0 ? (
+        {allDrinks.length > 0 && (
+          <div className="shop-drink-search-wrap">
+            <input
+              type="search"
+              placeholder="Search drinks from this coffee shop"
+              value={drinkSearchFilter}
+              onChange={(e) => setDrinkSearchFilter(e.target.value)}
+              className="shop-drink-search"
+              aria-label="Search drinks at this shop"
+            />
+          </div>
+        )}
+        {filteredDrinks.length > 0 ? (
           <>
-            <h3 className="shop-drinks-subtitle">Top rated</h3>
-            <ul className="shop-drinks-list shop-drinks-list--with-photos">
+          <ul className="shop-drinks-list shop-drinks-list--with-photos">
               {topDrinks.map((d) => (
                 <ShopDrinkCard
                   key={d.drinkId}
@@ -111,14 +138,51 @@ export function ShopDetail() {
                   setReviewRating={setReviewRating}
                   reviewComment={reviewComment}
                   setReviewComment={setReviewComment}
+                  reviewDescriptors={reviewDescriptors}
+                  setReviewDescriptors={setReviewDescriptors}
                   submittingReview={submittingReview}
                   onSubmitReview={handleSubmitReview}
                 />
               ))}
             </ul>
+            {restDrinks.length > 0 && (
+              <div className="shop-see-more">
+                <button
+                  type="button"
+                  className="shop-see-more-btn"
+                  onClick={() => setShowAllDrinks(!showAllDrinks)}
+                  aria-expanded={showAllDrinks}
+                >
+                  {showAllDrinks ? 'See less' : `See more (${restDrinks.length})`}
+                </button>
+                {showAllDrinks && (
+                  <ul className="shop-drinks-list shop-drinks-list--with-photos shop-drinks-list--expanded">
+                    {restDrinks.map((d) => (
+                      <ShopDrinkCard
+                        key={d.drinkId}
+                        drink={d}
+                        user={user}
+                        reviewingDrink={reviewingDrink}
+                        setReviewingDrink={setReviewingDrink}
+                        reviewRating={reviewRating}
+                        setReviewRating={setReviewRating}
+                        reviewComment={reviewComment}
+                        setReviewComment={setReviewComment}
+                        reviewDescriptors={reviewDescriptors}
+                        setReviewDescriptors={setReviewDescriptors}
+                        submittingReview={submittingReview}
+                        onSubmitReview={handleSubmitReview}
+                      />
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </>
+        ) : allDrinks.length > 0 ? (
+          <p className="shop-no-drinks">No drinks match &ldquo;{drinkSearchFilter}&rdquo;</p>
         ) : (
-        <p className="shop-no-drinks">No drinks rated yet.</p>
+          <p className="shop-no-drinks">No drinks rated yet.</p>
         )}
         {user && (
           <div className="shop-add-drink">
@@ -168,9 +232,14 @@ export function ShopDetail() {
   );
 }
 
-function ShopDrinkCard({ drink, user, reviewingDrink, setReviewingDrink, reviewRating, setReviewRating, reviewComment, setReviewComment, submittingReview, onSubmitReview }) {
+function ShopDrinkCard({ drink, user, reviewingDrink, setReviewingDrink, reviewRating, setReviewRating, reviewComment, setReviewComment, reviewDescriptors, setReviewDescriptors, submittingReview, onSubmitReview }) {
   const isReviewing = reviewingDrink === drink.drinkId;
   const photoUrl = getDrinkPhotoUrl(drink.drinkType, drink.displayName);
+
+  function toggleDescriptor(tag) {
+    setReviewDescriptors((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
+  }
+
   return (
     <li className="shop-drink-card shop-drink-card--with-photo">
       <img src={photoUrl} alt="" className="shop-drink-photo" />
@@ -194,9 +263,17 @@ function ShopDrinkCard({ drink, user, reviewingDrink, setReviewingDrink, reviewR
         )}
         {isReviewing && (
           <form className="shop-review-form" onSubmit={(e) => { e.preventDefault(); onSubmitReview(drink.drinkId); }}>
+            <p className="shop-review-drink-label">Rating: <strong>{drink.displayName}</strong></p>
             <div className="shop-review-stars">
               {[1, 2, 3, 4, 5].map((n) => (
                 <button key={n} type="button" className={`star-btn ${reviewRating >= n ? 'filled' : ''}`} onClick={() => setReviewRating(n)}>★</button>
+              ))}
+            </div>
+            <div className="shop-review-descriptors">
+              {REVIEW_DESCRIPTORS.map((tag) => (
+                <button key={tag} type="button" className={`descriptor-btn ${reviewDescriptors.includes(tag) ? 'selected' : ''}`} onClick={() => toggleDescriptor(tag)}>
+                  {tag}
+                </button>
               ))}
             </div>
             <input type="text" placeholder="Comment (optional)" value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} className="shop-review-comment" />

@@ -14,9 +14,14 @@ const DRINK_TYPO_MAP = {
   'flatwhite': 'flat white', 'flat-white': 'flat white',
 };
 
+const DRINK_WORD_TYPOS = { buttterscotch: 'butterscotch', buttersotch: 'butterscotch' };
+
 export function correctDrinkTypo(query) {
   const q = query.trim().toLowerCase();
-  return DRINK_TYPO_MAP[q] || query.trim();
+  if (DRINK_TYPO_MAP[q]) return DRINK_TYPO_MAP[q];
+  const words = q.split(/\s+/);
+  const corrected = words.map((w) => DRINK_WORD_TYPOS[w] || w).join(' ');
+  return corrected || query.trim();
 }
 
 export async function geocodeAddress(address) {
@@ -95,6 +100,14 @@ export async function addPlaceDrinkReview(placeId, drinkId, rating, comment, des
     body: JSON.stringify({ rating, comment: comment || undefined, descriptors: descriptors || [], photo: photo || undefined }),
     credentials: 'include',
   });
+  const ct = res.headers.get('content-type') || '';
+  if (!ct.includes('application/json')) {
+    const text = await res.text();
+    if (text.startsWith('<')) {
+      throw new Error('Server returned HTML. Is the API running on port 3001?');
+    }
+    throw new Error(text || 'Failed to save review');
+  }
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Failed to add review');
   return data;
@@ -186,6 +199,14 @@ export async function updateAvatar(avatar) {
     body: JSON.stringify({ avatar }),
     credentials: 'include',
   });
+  const ct = res.headers.get('content-type') || '';
+  if (!ct.includes('application/json')) {
+    const text = await res.text();
+    if (text.startsWith('<')) {
+      throw new Error('Server returned HTML instead of JSON. Is the API server running on port 3001?');
+    }
+    throw new Error(text || 'Failed to update profile picture');
+  }
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Failed to update avatar');
   return data;
@@ -198,11 +219,11 @@ export async function getMyReviews() {
   return data;
 }
 
-export async function addReview(drinkId, rating, comment) {
+export async function addReview(drinkId, rating, comment, descriptors = []) {
   const res = await fetch(`${API}/drinks/${drinkId}/reviews`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ rating, comment: comment || undefined }),
+    body: JSON.stringify({ rating, comment: comment || undefined, descriptors: descriptors || [] }),
     credentials: 'include',
   });
   const data = await res.json();

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { addReview } from './api';
 
+const REVIEW_DESCRIPTORS = ['bitter', 'sweet', 'smooth', 'strong', 'creamy', 'bold', 'mild', 'roasty'];
+
 export function DrinkResults({ results, loading, query, hasCoords, user }) {
   if (loading) return null;
 
@@ -23,8 +25,13 @@ function ResultCard({ r, user }) {
   const [showForm, setShowForm] = useState(false);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
+  const [descriptors, setDescriptors] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
+
+  function toggleDescriptor(tag) {
+    setDescriptors((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -32,11 +39,12 @@ function ResultCard({ r, user }) {
     setSubmitting(true);
     setMessage('');
     try {
-      await addReview(r.drinkId, rating, comment.trim() || undefined);
+      await addReview(r.drinkId, rating, comment.trim() || undefined, descriptors);
       setMessage('Review saved! It will appear on your profile.');
       setShowForm(false);
       setRating(0);
       setComment('');
+      setDescriptors([]);
     } catch (err) {
       setMessage(err.message || 'Could not save review');
     } finally {
@@ -85,6 +93,7 @@ function ResultCard({ r, user }) {
             </button>
           ) : (
             <form onSubmit={handleSubmit} className="result-review-form">
+              <p className="result-review-drink-label">Rating: <strong>{r.displayName}</strong></p>
               <div className="result-review-stars">
                 {[1, 2, 3, 4, 5].map((n) => (
                   <button
@@ -95,6 +104,18 @@ function ResultCard({ r, user }) {
                     aria-label={`${n} star${n > 1 ? 's' : ''}`}
                   >
                     ★
+                  </button>
+                ))}
+              </div>
+              <div className="result-review-descriptors">
+                {REVIEW_DESCRIPTORS.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    className={`descriptor-btn ${descriptors.includes(tag) ? 'selected' : ''}`}
+                    onClick={() => toggleDescriptor(tag)}
+                  >
+                    {tag}
                   </button>
                 ))}
               </div>
@@ -110,7 +131,7 @@ function ResultCard({ r, user }) {
                 <button type="submit" className="result-review-submit" disabled={submitting || rating < 1}>
                   {submitting ? 'Saving…' : 'Save review'}
                 </button>
-                <button type="button" className="result-review-cancel" onClick={() => { setShowForm(false); setRating(0); setComment(''); setMessage(''); }}>
+                <button type="button" className="result-review-cancel" onClick={() => { setShowForm(false); setRating(0); setComment(''); setDescriptors([]); setMessage(''); }}>
                   Cancel
                 </button>
               </div>

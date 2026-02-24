@@ -62,9 +62,13 @@ export function SearchResults({ shops, drinks, loading, query, hasLocation, user
         <div className="results-section">
           <h2 className="results-section-title">Drinks</h2>
           <ul className="results-list results-list--yelp">
-            {drinks.map((d) => (
-              <li key={`${d.shopId}-${d.drinkId}`} className="result-card-wrap">
-                <Link to={`/shop/${d.shopId}`} className="result-card result-card--drink">
+            {drinks.map((d) => {
+              const isPlace = d.placeId || d.source === 'place';
+              const linkTo = isPlace ? `/place/${encodeURIComponent(d.placeId)}` : `/shop/${d.shopId}`;
+              const key = isPlace ? `place-${d.placeId}-${d.drinkId}` : `shop-${d.shopId}-${d.drinkId}`;
+              return (
+              <li key={key} className="result-card-wrap">
+                <Link to={linkTo} className="result-card result-card--drink">
                   <div className="result-drink">{d.displayName}</div>
                   <div className="result-shop">{d.shopName}</div>
                   <div className="result-meta">
@@ -90,7 +94,8 @@ export function SearchResults({ shops, drinks, loading, query, hasLocation, user
                   Directions
                 </a>
               </li>
-            ))}
+            );
+            })}
           </ul>
         </div>
       )}

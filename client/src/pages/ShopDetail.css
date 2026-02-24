@@ -129,6 +129,69 @@
   margin: 1.5rem 0 1rem;
 }
 
+.shop-drink-search-wrap {
+  margin-bottom: 1rem;
+}
+
+.shop-drink-search {
+  width: 100%;
+  max-width: 280px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+  background: var(--surface);
+}
+
+.shop-drink-search::placeholder {
+  color: var(--text-muted);
+}
+
+.shop-see-more {
+  margin-top: 1rem;
+}
+
+.shop-see-more-btn {
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--accent);
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.shop-see-more-btn:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.shop-drinks-list--expanded {
+  margin-top: 1rem;
+}
+
+.shop-drink-reviews-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  font-size: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.shop-drink-reviews-link:hover {
+  text-decoration: none;
+}
+
+.shop-drink-reviews-more {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+}
+
 .shop-drinks-list {
   list-style: none;
   margin: 0;
@@ -201,6 +264,16 @@
 .star-btn.filled,
 .star-rating .star-btn.filled {
   color: var(--star);
+}
+
+.shop-review-drink-label {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.shop-review-drink-label strong {
+  font-weight: 600;
 }
 
 .shop-review-descriptors {

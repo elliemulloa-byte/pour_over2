@@ -360,6 +360,10 @@ app.get('/api/places/:placeId', async (req, res) => {
     place = await fetchPlaceDetails(placeId);
   }
   if (!place) return res.status(404).json({ error: 'Place not found' });
+  try {
+    db.prepare('INSERT OR REPLACE INTO place_cache (place_id, name, address, lat, lng) VALUES (?, ?, ?, ?, ?)')
+      .run(placeId, place.name || '', place.address || '', place.lat ?? null, place.lng ?? null);
+  } catch (_) { /* place_cache may not exist */ }
   let userReviews = [];
   let placeDrinks = [];
   try {
@@ -453,7 +457,7 @@ app.post('/api/places/:placeId/drinks/:drinkId/reviews', requireAuth, (req, res)
   }
   const descList = Array.isArray(descriptors) ? descriptors.filter((d) => REVIEW_DESCRIPTORS.includes(String(d).toLowerCase())) : [];
   const descJson = descList.length > 0 ? JSON.stringify(descList) : null;
-  const photoData = typeof req.body?.photo === 'string' && req.body.photo.startsWith('data:image/') && req.body.photo.length < 500000 ? req.body.photo : null;
+  const photoData = typeof req.body?.photo === 'string' && req.body.photo.startsWith('data:image/') && req.body.photo.length < 3 * 1024 * 1024 ? req.body.photo : null;
   try {
     const drink = db.prepare('SELECT id FROM place_drinks WHERE id = ? AND place_id = ?').all(drinkId, placeId)[0];
     if (!drink) return res.status(404).json({ error: 'Drink not found' });
@@ -478,7 +482,7 @@ app.post('/api/places/:placeId/reviews', requireAuth, (req, res) => {
   if (commentText && isCommentInappropriate(commentText)) {
     return res.status(400).json({ error: 'Comment contains inappropriate language. Please keep it friendly.' });
   }
-  const photoData = typeof req.body?.photo === 'string' && req.body.photo.startsWith('data:image/') && req.body.photo.length < 500000 ? req.body.photo : null;
+  const photoData = typeof req.body?.photo === 'string' && req.body.photo.startsWith('data:image/') && req.body.photo.length < 3 * 1024 * 1024 ? req.body.photo : null;
   try {
     const { lastInsertRowid } = db.prepare(
       'INSERT INTO place_reviews (place_id, user_id, rating, comment, photo) VALUES (?, ?, ?, ?, ?)'
@@ -535,12 +539,23 @@ app.get('/api/search', async (req, res) => {
     });
   }
 
-  // Search drinks (before IP fallback so we can check if we have any results)
+  // Search drinks from shops (before IP fallback so we can check if we have any results)
   const drinkRows = db.prepare(`
     SELECT d.id AS drink_id, d.drink_type, d.display_name, s.id AS shop_id, s.name AS shop_name, s.address AS shop_address, s.lat AS shop_lat, s.lng AS shop_lng
     FROM drinks d JOIN shops s ON s.id = d.shop_id
     WHERE LOWER(d.drink_type) LIKE ? OR LOWER(d.display_name) LIKE ?
   `).all(`%${q}%`, `%${q}%`);
+
+  // Search place_drinks (user-added drinks at Google/OSM/Foursquare places)
+  let placeDrinkRows = [];
+  try {
+    placeDrinkRows = db.prepare(`
+      SELECT pd.id AS drink_id, pd.drink_type, pd.display_name, pd.place_id, pc.name AS place_name, pc.address AS place_address, pc.lat AS place_lat, pc.lng AS place_lng
+      FROM place_drinks pd
+      LEFT JOIN place_cache pc ON pc.place_id = pd.place_id
+      WHERE LOWER(pd.drink_type) LIKE ? OR LOWER(pd.display_name) LIKE ?
+    `).all(`%${q}%`, `%${q}%`);
+  } catch (_) { /* place_cache may not exist */ }
 
   // Get coords for Google Places: use provided lat/lng, or try IP fallback
   let latForGoogle = lat;
@@ -607,15 +622,45 @@ app.get('/api/search', async (req, res) => {
         shopId: d.shop_id, shopName: d.shop_name, shopAddress: d.shop_address,
         avgRating: st.avg_rating != null ? Math.round(Number(st.avg_rating) * 10) / 10 : null,
         reviewCount: st.review_count, distanceKm: distanceKm != null ? Math.round(distanceKm * 10) / 10 : null,
-        distanceMiles: kmToMiles(distanceKm),
+        distanceMiles: kmToMiles(distanceKm), source: 'shop',
       };
     });
+  }
+  // Add place_drinks (user-added drinks at places)
+  if (placeDrinkRows.length > 0) {
+    const placeDrinkIds = placeDrinkRows.map((r) => r.drink_id);
+    let placeStats = {};
+    try {
+      const stats = db.prepare(`
+        SELECT place_drink_id, COUNT(*) AS review_count, AVG(rating) AS avg_rating
+        FROM place_drink_reviews WHERE place_drink_id IN (${placeDrinkIds.map(() => '?').join(',')}) GROUP BY place_drink_id
+      `).all(...placeDrinkIds);
+      placeStats = Object.fromEntries(stats.map((s) => [s.place_drink_id, s]));
+    } catch (_) {}
+    const placeDrinks = placeDrinkRows.map((d) => {
+      const st = placeStats[d.drink_id] || { review_count: 0, avg_rating: null };
+      let distanceKm = null;
+      if (lat != null && lng != null && d.place_lat != null && d.place_lng != null) {
+        distanceKm = haversineKm(lat, lng, d.place_lat, d.place_lng);
+      }
+      return {
+        drinkId: d.drink_id, drinkType: d.drink_type, displayName: d.display_name,
+        placeId: d.place_id, shopName: d.place_name || 'Coffee shop', shopAddress: d.place_address || '',
+        avgRating: st.avg_rating != null ? Math.round(Number(st.avg_rating) * 10) / 10 : null,
+        reviewCount: st.review_count, distanceKm: distanceKm != null ? Math.round(distanceKm * 10) / 10 : null,
+        distanceMiles: kmToMiles(distanceKm), source: 'place',
+      };
+    });
+    drinks = [...drinks, ...placeDrinks];
+  }
+  if (drinks.length > 0) {
     const relevance = (r) => {
       let s = 0;
-      if (r.drinkType === q || r.displayName.toLowerCase() === q) s += 100;
-      else if (r.drinkType.startsWith(q) || r.displayName.toLowerCase().startsWith(q)) s += 50;
+      const dn = (r.displayName || '').toLowerCase();
+      if (r.drinkType === q || dn === q) s += 100;
+      else if ((r.drinkType || '').startsWith(q) || dn.startsWith(q)) s += 50;
       if (r.avgRating != null) s += r.avgRating * 10;
-      s += Math.log1p(r.reviewCount) * 5;
+      s += Math.log1p(r.reviewCount || 0) * 5;
       if (r.distanceKm != null) s -= r.distanceKm * 2;
       return s;
     };
@@ -643,9 +688,11 @@ app.get('/api/users/me/reviews', requireAuth, (req, res) => {
   res.json({ reviews: rows });
 });
 
+const DRINK_REVIEW_DESCRIPTORS = ['bitter', 'sweet', 'smooth', 'strong', 'creamy', 'bold', 'mild', 'roasty'];
+
 app.post('/api/drinks/:drinkId/reviews', requireAuth, (req, res) => {
   const drinkId = parseInt(req.params.drinkId, 10);
-  const { rating, comment } = req.body || {};
+  const { rating, comment, descriptors } = req.body || {};
   if (!Number.isInteger(drinkId) || drinkId < 1) {
     return res.status(400).json({ error: 'Invalid drink id' });
   }
@@ -661,8 +708,10 @@ app.post('/api/drinks/:drinkId/reviews', requireAuth, (req, res) => {
   if (commentText && isCommentInappropriate(commentText)) {
     return res.status(400).json({ error: 'Comment contains inappropriate language. Please keep it friendly.' });
   }
-  const { lastInsertRowid } = db.prepare('INSERT INTO drink_reviews (drink_id, user_id, rating, comment) VALUES (?, ?, ?, ?)').run(drinkId, req.session.userId, r, commentText);
-  const row = db.prepare('SELECT id, drink_id, rating, comment, created_at FROM drink_reviews WHERE id = ?').all(lastInsertRowid)[0];
+  const descList = Array.isArray(descriptors) ? descriptors.filter((d) => DRINK_REVIEW_DESCRIPTORS.includes(String(d).toLowerCase())) : [];
+  const descJson = JSON.stringify(descList);
+  const { lastInsertRowid } = db.prepare('INSERT INTO drink_reviews (drink_id, user_id, rating, comment, descriptors) VALUES (?, ?, ?, ?, ?)').run(drinkId, req.session.userId, r, commentText, descJson);
+  const row = db.prepare('SELECT id, drink_id, rating, comment, descriptors, created_at FROM drink_reviews WHERE id = ?').all(lastInsertRowid)[0];
   res.status(201).json({ review: row });
 });
 

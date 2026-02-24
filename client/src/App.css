@@ -440,6 +440,39 @@
   color: var(--surface);
 }
 
+.result-review-drink-label {
+  margin: 0 0 0.25rem;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.result-review-descriptors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.result-review-descriptors .descriptor-btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.result-review-descriptors .descriptor-btn:hover {
+  background: var(--surface-hover);
+}
+
+.result-review-descriptors .descriptor-btn.selected {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .result-review-form {
   display: flex;
   flex-direction: column;

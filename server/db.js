@@ -172,6 +172,18 @@ export async function initDb() {
   try {
     _db.exec('ALTER TABLE users ADD COLUMN avatar TEXT');
   } catch (_) { /* column already exists */ }
+  try {
+    _db.exec('ALTER TABLE drink_reviews ADD COLUMN descriptors TEXT');
+  } catch (_) { /* column already exists */ }
+  try {
+    _db.exec(`CREATE TABLE IF NOT EXISTS place_cache (
+      place_id TEXT PRIMARY KEY,
+      name TEXT,
+      address TEXT,
+      lat REAL,
+      lng REAL
+    )`);
+  } catch (_) { /* already exists */ }
   return _db;
 }
 
