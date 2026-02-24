@@ -597,3 +597,37 @@
   color: var(--text-muted);
   margin: 0;
 }
+
+/* Rate a drink - bottom section */
+.shop-rate-drink {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+.shop-rate-drink-signin {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  margin: 0.5rem 0;
+}
+.shop-rate-drink-btn {
+  margin-top: 0;
+}
+.shop-rate-drink-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.shop-rate-drink-select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+  background: var(--surface);
+}
+.shop-rate-drink-new-input {
+  margin-top: -0.25rem;
+}
+.shop-rate-drink-actions {
+  display: flex;
+  gap: 0.5rem;
+}
